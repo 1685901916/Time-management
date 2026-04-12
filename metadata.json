@@ -1,0 +1,5 @@
+{
+  "name": "爱时间 - 时间管理App",
+  "description": "一个复刻版的时间管理应用，支持24小时圆环视图、目标追踪、计划对比及时间记录功能。",
+  "requestFramePermissions": []
+}

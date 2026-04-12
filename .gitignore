@@ -1,0 +1,16 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+uploads/
+data/
+*.db
+.claude/settings.local.json
+.npm-cache/
+.windsurf/
+.vscode/
+design-system/
