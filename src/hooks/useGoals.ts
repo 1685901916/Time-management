@@ -18,7 +18,7 @@ export function useGoals() {
     }
   }, []);
 
-  const createGoal = useCallback(async (data: { title: string; subtitle: string; category: string }) => {
+  const createGoal = useCallback(async (data: { title: string; subtitle: string; category: string; color?: string }) => {
     try {
       const goal = await goalsApi.createGoal(data);
       setGoals(prev => [...prev, goal]);
@@ -29,7 +29,7 @@ export function useGoals() {
     }
   }, []);
 
-  const updateGoal = useCallback(async (id: string, data: { title?: string; subtitle?: string; category?: string }) => {
+  const updateGoal = useCallback(async (id: string, data: { title?: string; subtitle?: string; category?: string; color?: string }) => {
     try {
       const goal = await goalsApi.updateGoal(id, data);
       setGoals(prev => prev.map(g => g.id === id ? { ...g, ...goal } : g));
@@ -37,6 +37,22 @@ export function useGoals() {
     } catch (err) {
       console.error('Failed to update goal:', err);
       return null;
+    }
+  }, []);
+
+  const reorderGoals = useCallback(async (goalIds: string[]) => {
+    try {
+      await goalsApi.reorderGoals(goalIds);
+      setGoals((prev) =>
+        goalIds
+          .map((id, index) => {
+            const goal = prev.find((item) => item.id === id);
+            return goal ? { ...goal, sortOrder: index + 1 } : null;
+          })
+          .filter(Boolean) as Goal[]
+      );
+    } catch (err) {
+      console.error('Failed to reorder goals:', err);
     }
   }, []);
 
@@ -49,5 +65,5 @@ export function useGoals() {
     }
   }, []);
 
-  return { goals, loading, fetchGoals, createGoal, updateGoal, deleteGoal };
+  return { goals, loading, fetchGoals, createGoal, updateGoal, reorderGoals, deleteGoal };
 }

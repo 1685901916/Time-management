@@ -8,18 +8,15 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', 'data', 'itime.db');
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, '..', 'uploads');
 
-// Ensure directories exist
 const dbDir = path.dirname(DB_PATH);
 if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 const db = new Database(DB_PATH);
 
-// Enable WAL mode for better concurrent performance
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 
-// Create tables
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -65,9 +62,21 @@ db.exec(`
     title       TEXT    NOT NULL,
     subtitle    TEXT    DEFAULT '',
     category    TEXT    NOT NULL,
+    color       TEXT    DEFAULT NULL,
+    sort_order  INTEGER NOT NULL DEFAULT 0,
     is_archived INTEGER NOT NULL DEFAULT 0,
     created_at  TEXT    DEFAULT (datetime('now')),
     updated_at  TEXT    DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS daily_reviews (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id    INTEGER NOT NULL REFERENCES users(id),
+    date       TEXT    NOT NULL,
+    content    TEXT    NOT NULL DEFAULT '',
+    created_at TEXT    DEFAULT (datetime('now')),
+    updated_at TEXT    DEFAULT (datetime('now')),
+    UNIQUE(user_id, date)
   );
 
   CREATE TABLE IF NOT EXISTS todos (
@@ -84,12 +93,68 @@ db.exec(`
   );
 `);
 
-// Migrations for existing databases
-try {
-  db.exec(`ALTER TABLE time_entries ADD COLUMN linked_todo_id INTEGER DEFAULT NULL`);
-} catch (_) { /* column already exists */ }
-try {
-  db.exec(`ALTER TABLE time_entries ADD COLUMN linked_goal_id INTEGER DEFAULT NULL`);
-} catch (_) { /* column already exists */ }
+const safeExec = (sql: string) => {
+  try {
+    db.exec(sql);
+  } catch {
+    // Ignore repeated migrations.
+  }
+};
+
+safeExec(`ALTER TABLE time_entries ADD COLUMN linked_todo_id INTEGER DEFAULT NULL`);
+safeExec(`ALTER TABLE time_entries ADD COLUMN linked_goal_id INTEGER DEFAULT NULL`);
+safeExec(`ALTER TABLE goals ADD COLUMN color TEXT DEFAULT NULL`);
+safeExec(`ALTER TABLE goals ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0`);
+
+db.prepare(`
+  UPDATE goals
+  SET category = CASE category
+    WHEN '瀛︿範' THEN '学习'
+    WHEN '鐫¤' THEN '睡觉'
+    WHEN '鍒锋墜鏈�' THEN '刷手机'
+    WHEN '鍒锋墜鏈?' THEN '刷手机'
+    WHEN '娓告垙' THEN '游戏'
+    WHEN '淇℃伅宸ヤ綔' THEN '信息工作'
+    WHEN '鎴峰' THEN '户外'
+    WHEN '鍐欑瑪璁�' THEN '写笔记'
+    WHEN '鍐欑瑪璁?' THEN '写笔记'
+    WHEN '浼戞伅' THEN '休息'
+    WHEN '鐞愪簨' THEN '琐事'
+    WHEN '杩愬姩' THEN '运动'
+    WHEN '�˶�' THEN '运动'
+    WHEN '鏈褰�' THEN '未记录'
+    WHEN '鏈褰?' THEN '未记录'
+    ELSE category
+  END
+  WHERE category IN (
+    '瀛︿範','鐫欒','鐫¤','鍒锋墜鏈�','鍒锋墜鏈?','娓告垙','淇℃伅宸ヤ綔',
+    '鎴峰','鍐欑瑪璁�','鍐欑瑪璁?','浼戞伅','鐞愪簨','杩愬姩','�˶�','鏈褰�','鏈褰?'
+  )
+`).run();
+
+db.prepare(`
+  UPDATE todos
+  SET quadrant = CASE quadrant
+    WHEN '閲嶈涓旂揣鎬�' THEN '重要且紧急'
+    WHEN '閲嶈涓旂揣鎬?' THEN '重要且紧急'
+    WHEN '閲嶈涓嶇揣鎬�' THEN '重要不紧急'
+    WHEN '閲嶈涓嶇揣鎬?' THEN '重要不紧急'
+    WHEN '涓嶉噸瑕佷絾绱ф€�' THEN '不重要但紧急'
+    WHEN '涓嶉噸瑕佷絾绱ф€?' THEN '不重要但紧急'
+    WHEN '涓嶉噸瑕佷笉绱ф€�' THEN '不重要不紧急'
+    WHEN '涓嶉噸瑕佷笉绱ф€?' THEN '不重要不紧急'
+    ELSE quadrant
+  END
+  WHERE quadrant IN (
+    '閲嶈涓旂揣鎬�','閲嶈涓旂揣鎬?','閲嶈涓嶇揣鎬�','閲嶈涓嶇揣鎬?',
+    '涓嶉噸瑕佷絾绱ф€�','涓嶉噸瑕佷絾绱ф€?','涓嶉噸瑕佷笉绱ф€�','涓嶉噸瑕佷笉绱ф€?'
+  )
+`).run();
+
+db.prepare(`
+  UPDATE goals
+  SET sort_order = id
+  WHERE sort_order = 0
+`).run();
 
 export default db;

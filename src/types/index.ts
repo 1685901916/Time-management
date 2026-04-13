@@ -1,4 +1,6 @@
-export type CategoryType = '学习' | '睡觉' | '刷手机' | '游戏' | '信息工作' | '户外' | '写笔记' | '休息' | '琐事' | '运动' | '未记录';
+import type { CategoryType, QuadrantType } from '../constants';
+
+export type { CategoryType, QuadrantType } from '../constants';
 
 export interface EntryPhoto {
   id: string;
@@ -27,9 +29,16 @@ export interface Goal {
   title: string;
   subtitle: string;
   category: CategoryType;
+  color?: string;
+  sortOrder?: number;
 }
 
-export type QuadrantType = '重要且紧急' | '重要不紧急' | '不重要但紧急' | '不重要不紧急';
+export interface DailyReview {
+  id: string;
+  date: string;
+  content: string;
+  updatedAt: string;
+}
 
 export interface Todo {
   id: string;

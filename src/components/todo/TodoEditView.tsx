@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { ChevronDown, Flag, Trash, MoreVertical, Tag, List, Paperclip } from 'lucide-react';
-import type { Todo, QuadrantType } from '../../types';
+import { ChevronDown, Flag, List, MoreVertical, Paperclip, Tag, Trash } from 'lucide-react';
+import type { QuadrantType, Todo } from '../../types';
 import { QUADRANT_CONFIG } from '../../constants';
 
 interface TodoEditViewProps {
@@ -17,41 +17,87 @@ export default function TodoEditView({ todo, onSave, onCancel, onDelete }: TodoE
   const [quadrant, setQuadrant] = useState<QuadrantType>(todo.quadrant || '重要且紧急');
   const config = QUADRANT_CONFIG[quadrant];
 
-  const handleSave = () => { if (!title.trim()) return; onSave({ ...todo, title, note, completed, quadrant } as Todo); };
+  const handleSave = () => {
+    if (!title.trim()) return;
+    onSave({ ...todo, title: title.trim(), note, completed, quadrant } as Todo);
+  };
 
   return (
-    <div className="fixed inset-0 bg-white z-[60] flex flex-col">
-      <header className="px-5 pt-6 pb-4 flex items-center justify-between bg-white sticky top-0 z-10">
-        <div className="flex items-center gap-1 text-[18px] text-gray-800 font-medium cursor-pointer" onClick={onCancel}>
-          <span>收集箱</span><ChevronDown size={20} className="text-gray-500" />
+    <div className="fixed inset-0 z-[60] flex flex-col bg-white">
+      <header className="sticky top-0 z-10 flex items-center justify-between bg-white px-5 pt-6 pb-4">
+        <div className="flex cursor-pointer items-center gap-1 text-[18px] font-medium text-gray-800" onClick={onCancel}>
+          <span>收起编辑</span>
+          <ChevronDown size={20} className="text-gray-500" />
         </div>
+
         <div className="flex items-center gap-4">
           <div className="relative">
-            <select value={quadrant} onChange={(e) => setQuadrant(e.target.value as QuadrantType)} className="absolute inset-0 opacity-0 cursor-pointer">
-              <option value="重要且紧急">重要且紧急</option><option value="重要不紧急">重要不紧急</option>
-              <option value="不重要但紧急">不重要但紧急</option><option value="不重要不紧急">不重要不紧急</option>
+            <select
+              value={quadrant}
+              onChange={(event) => setQuadrant(event.target.value as QuadrantType)}
+              className="absolute inset-0 cursor-pointer opacity-0"
+            >
+              <option value="重要且紧急">重要且紧急</option>
+              <option value="重要不紧急">重要不紧急</option>
+              <option value="不重要但紧急">不重要但紧急</option>
+              <option value="不重要不紧急">不重要不紧急</option>
             </select>
-            <button className="p-1 pointer-events-none"><Flag size={24} fill={config.color} stroke={config.color} /></button>
+            <button className="pointer-events-none p-1">
+              <Flag size={24} fill={config.color} stroke={config.color} />
+            </button>
           </div>
-          {todo.id && <button onClick={() => onDelete(todo.id!)} className="p-1 text-gray-600"><Trash size={24} /></button>}
-          <button className="p-1 text-gray-600"><MoreVertical size={24} /></button>
+
+          {todo.id && (
+            <button onClick={() => onDelete(todo.id!)} className="p-1 text-gray-600">
+              <Trash size={24} />
+            </button>
+          )}
+
+          <button className="p-1 text-gray-600">
+            <MoreVertical size={24} />
+          </button>
         </div>
       </header>
+
       <div className="flex-1 overflow-y-auto px-5 space-y-4">
         <div className="flex items-center gap-3 text-gray-400">
-          <button onClick={() => setCompleted(!completed)} className={`w-5 h-5 rounded-[6px] border-[1.5px] flex items-center justify-center transition-colors ${completed ? 'bg-[#E5E5EA] border-[#E5E5EA]' : 'bg-white'}`}
-            style={!completed ? { borderColor: config.color } : {}}>
-            {completed && <div className="w-2.5 h-1.5 border-l-[2px] border-b-[2px] border-white -rotate-45 -mt-0.5" />}
+          <button
+            onClick={() => setCompleted(!completed)}
+            className={`flex h-5 w-5 items-center justify-center rounded-[6px] border-[1.5px] transition-colors ${
+              completed ? 'border-[#E5E5EA] bg-[#E5E5EA]' : 'bg-white'
+            }`}
+            style={!completed ? { borderColor: config.color } : {}}
+          >
+            {completed && <div className="-mt-0.5 h-1.5 w-2.5 rotate-[-45deg] border-l-[2px] border-b-[2px] border-white" />}
           </button>
           <span className="text-[15px]">日期与提醒</span>
         </div>
-        <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="准备做什么？" className="w-full text-[22px] font-medium text-gray-900 outline-none placeholder-gray-300" autoFocus />
-        <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="描述" className="w-full h-32 text-[16px] text-gray-600 outline-none resize-none placeholder-gray-400" />
+
+        <input
+          type="text"
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+          placeholder="准备做什么？"
+          className="w-full text-[22px] font-medium text-gray-900 outline-none placeholder-gray-300"
+          autoFocus
+        />
+
+        <textarea
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
+          placeholder="描述"
+          className="h-32 w-full resize-none text-[16px] text-gray-600 outline-none placeholder-gray-400"
+        />
       </div>
-      <div className="px-5 py-4 border-t border-gray-100 flex items-center gap-6 text-gray-400 bg-white">
-        <Tag size={22} /><List size={22} /><Paperclip size={22} />
-        <div className="flex-1"></div>
-        <button onClick={handleSave} className="text-[#5B8FF9] font-medium px-4 py-1.5 bg-blue-50 rounded-full">保存</button>
+
+      <div className="flex items-center gap-6 border-t border-gray-100 bg-white px-5 py-4 text-gray-400">
+        <Tag size={22} />
+        <List size={22} />
+        <Paperclip size={22} />
+        <div className="flex-1" />
+        <button onClick={handleSave} className="rounded-full bg-blue-50 px-4 py-1.5 font-medium text-[#5B8FF9]">
+          保存
+        </button>
       </div>
     </div>
   );
