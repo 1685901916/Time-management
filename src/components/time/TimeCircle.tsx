@@ -39,6 +39,12 @@ export default function TimeCircle({ entries, onSelectEntry, selectedEntryId, is
   };
 
   const timeToMinutes = (time: string) => { const [h, m] = time.split(':').map(Number); return h * 60 + m; };
+  const getEntryRange = (entry: Pick<TimeEntry, 'startTime' | 'endTime'>) => {
+    const startMins = timeToMinutes(entry.startTime);
+    const endMins = timeToMinutes(entry.endTime);
+    if (startMins > endMins) return { startMins: 0, endMins };
+    return { startMins, endMins };
+  };
   const minutesToAngle = (minutes: number) => (minutes % 720) / 720 * 360;
   const currentMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
   const currentAngle = minutesToAngle(currentMinutes);
@@ -46,8 +52,7 @@ export default function TimeCircle({ entries, onSelectEntry, selectedEntryId, is
   const segments = useMemo(() => {
     const segs: (TimeEntry & { segmentId: string; startMins: number; endMins: number; isPM: boolean })[] = [];
     entries.forEach(entry => {
-      const startMins = timeToMinutes(entry.startTime);
-      const endMins = timeToMinutes(entry.endTime);
+      const { startMins, endMins } = getEntryRange(entry);
       if (startMins < 720 && endMins > 720) {
         segs.push({ ...entry, segmentId: `${entry.id}-am`, startMins, endMins: 720, isPM: false });
         segs.push({ ...entry, segmentId: `${entry.id}-pm`, startMins: 720, endMins, isPM: true });
@@ -61,14 +66,14 @@ export default function TimeCircle({ entries, onSelectEntry, selectedEntryId, is
   const unrecordedSegments = useMemo(() => {
     const segs: { startMins: number; endMins: number; isPM: boolean }[] = [];
     let maxEntryEnd = 0;
-    for (const e of entries) maxEntryEnd = Math.max(maxEntryEnd, timeToMinutes(e.endTime));
+    for (const e of entries) maxEntryEnd = Math.max(maxEntryEnd, getEntryRange(e).endMins);
     const endOfDayMins = isToday ? Math.max(currentMinutes, maxEntryEnd) : 1440;
     let lastEnd = 0;
-    const sorted = [...entries].sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
+    const sorted = [...entries].sort((a, b) => getEntryRange(a).startMins - getEntryRange(b).startMins);
     for (const entry of sorted) {
-      const startMins = timeToMinutes(entry.startTime);
+      const { startMins, endMins } = getEntryRange(entry);
       if (startMins > lastEnd) { const gapEnd = Math.min(startMins, endOfDayMins); if (gapEnd > lastEnd) segs.push({ startMins: lastEnd, endMins: gapEnd, isPM: lastEnd >= 720 }); }
-      lastEnd = Math.max(lastEnd, timeToMinutes(entry.endTime));
+      lastEnd = Math.max(lastEnd, endMins);
     }
     if (lastEnd < endOfDayMins) segs.push({ startMins: lastEnd, endMins: endOfDayMins, isPM: lastEnd >= 720 });
     return segs;
@@ -76,10 +81,10 @@ export default function TimeCircle({ entries, onSelectEntry, selectedEntryId, is
 
   return (
     <div className="relative w-full flex items-center justify-center py-4">
-      <svg width="280" height="280" viewBox="0 0 280 280" className="drop-shadow-sm">
-        <circle cx={center} cy={center} r={outerRadius} fill="#F9FAFB" stroke="#E5E7EB" strokeWidth="1" />
-        <circle cx={center} cy={center} r={middleRadius} fill="#F9FAFB" stroke="#E5E7EB" strokeWidth="1" />
-        <circle cx={center} cy={center} r={innerRadius} fill="white" stroke="#E5E7EB" strokeWidth="1" />
+      <svg width="280" height="280" viewBox="0 0 280 280" className="drop-shadow-sm transition-all duration-500">
+        <circle cx={center} cy={center} r={outerRadius} fill="#F8FAFC" stroke="#E2E8F0" strokeWidth="1" strokeDasharray="4 2" />
+        <circle cx={center} cy={center} r={middleRadius} fill="#F8FAFC" stroke="#E2E8F0" strokeWidth="1" strokeDasharray="4 2" />
+        <circle cx={center} cy={center} r={innerRadius} fill="white" stroke="#E2E8F0" strokeWidth="1" />
 
         {unrecordedSegments.map((seg, i) => {
           const startAngle = minutesToAngle(seg.startMins);
@@ -87,7 +92,7 @@ export default function TimeCircle({ entries, onSelectEntry, selectedEntryId, is
           if (endAngle <= startAngle && seg.endMins > seg.startMins) endAngle += 360;
           const r = seg.isPM ? outerRadius : middleRadius;
           const ir = seg.isPM ? middleRadius : innerRadius;
-          return <path key={`unrec-${i}`} d={describeArc(startAngle, endAngle, r, ir)} fill="#E5E7EB" />;
+          return <path key={`unrec-${i}`} d={describeArc(startAngle, endAngle, r, ir)} fill="#F1F5F9" />;
         })}
 
         {segments.map((seg) => {
@@ -114,9 +119,9 @@ export default function TimeCircle({ entries, onSelectEntry, selectedEntryId, is
           const innerP = polarToCartesian(center, center, innerRadius - 10, angle);
           return (
             <g key={i}>
-              <line x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke="#ffffff" strokeWidth="1" className="pointer-events-none" />
-              <text x={outerP.x} y={outerP.y} fill="#9CA3AF" fontSize="10" textAnchor="middle" dominantBaseline="middle">{i === 0 ? 24 : i + 12}</text>
-              <text x={innerP.x} y={innerP.y} fill="#9CA3AF" fontSize="10" textAnchor="middle" dominantBaseline="middle">{i === 0 ? 12 : i}</text>
+              <line x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke="#ffffff" strokeWidth="2" className="pointer-events-none" />
+              <text x={outerP.x} y={outerP.y} fill="#94A3B8" fontSize="10" fontWeight="500" textAnchor="middle" dominantBaseline="middle">{i === 0 ? 24 : i + 12}</text>
+              <text x={innerP.x} y={innerP.y} fill="#94A3B8" fontSize="10" fontWeight="500" textAnchor="middle" dominantBaseline="middle">{i === 0 ? 12 : i}</text>
             </g>
           );
         })}
@@ -132,7 +137,7 @@ export default function TimeCircle({ entries, onSelectEntry, selectedEntryId, is
       </svg>
 
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-        <div className="w-20 h-20 rounded-full flex flex-col items-center justify-center bg-white shadow-sm border border-gray-100">
+        <div className="w-[84px] h-[84px] rounded-full flex flex-col items-center justify-center bg-white shadow-soft border border-slate-50 transition-all duration-300">
           {selectedEntryId || hoveredId ? (
             <div className="animate-in fade-in zoom-in duration-200">
               <p className="text-[10px] text-gray-400">{(entries.find(e => e.id === (hoveredId || selectedEntryId))?.startTime)} - {(entries.find(e => e.id === (hoveredId || selectedEntryId))?.endTime)}</p>
@@ -144,7 +149,11 @@ export default function TimeCircle({ entries, onSelectEntry, selectedEntryId, is
             const m = currentTime.getMinutes().toString().padStart(2, '0');
             let recordedMins = 0;
             let maxEntryEnd = 0;
-            entries.forEach(e => { recordedMins += e.durationMinutes; maxEntryEnd = Math.max(maxEntryEnd, timeToMinutes(e.endTime)); });
+            entries.forEach(e => {
+              const range = getEntryRange(e);
+              recordedMins += Math.max(0, range.endMins - range.startMins);
+              maxEntryEnd = Math.max(maxEntryEnd, range.endMins);
+            });
             const unrecordedMins = Math.max(0, Math.max(currentMinutes, maxEntryEnd) - recordedMins);
             return (
               <>

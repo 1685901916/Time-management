@@ -70,7 +70,7 @@ export const CATEGORY_COLORS: Record<CategoryType, string> = {
   刷手机: '#76C893',
   游戏: '#E63946',
   信息工作: '#F4A261',
-  户外: '#FBC4AB',
+  户外: '#F77F00',
   写笔记: '#E76F51',
   休息: '#A8DADC',
   琐事: '#DDE5ED',
@@ -79,10 +79,10 @@ export const CATEGORY_COLORS: Record<CategoryType, string> = {
 };
 
 export const QUADRANT_CONFIG: Record<QuadrantType, { color: string; icon: string; label: string; bg: string }> = {
-  重要且紧急: { color: '#FF5C5C', icon: 'I', label: '重要且紧急', bg: '#FEECEC' },
-  重要不紧急: { color: '#FFA726', icon: 'II', label: '重要不紧急', bg: '#FFF4E5' },
-  不重要但紧急: { color: '#42A5F5', icon: 'III', label: '不重要但紧急', bg: '#E3F2FD' },
-  不重要不紧急: { color: '#2ECA8B', icon: 'IV', label: '不重要不紧急', bg: '#E8F5E9' },
+  重要且紧急: { color: '#EF4444', icon: 'I', label: '重要且紧急', bg: '#FEF2F2' },
+  重要不紧急: { color: '#F59E0B', icon: 'II', label: '重要不紧急', bg: '#FFFBEB' },
+  不重要但紧急: { color: '#3B82F6', icon: 'III', label: '不重要但紧急', bg: '#EFF6FF' },
+  不重要不紧急: { color: '#10B981', icon: 'IV', label: '不重要不紧急', bg: '#ECFDF5' },
 };
 
 export const GOAL_COLOR_PRESETS = [

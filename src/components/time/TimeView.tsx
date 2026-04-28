@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   ArrowLeftRight,
   BarChart2,
@@ -12,6 +13,7 @@ import {
   Target,
 } from 'lucide-react';
 import Header from '../common/Header';
+import MarkdownText from '../common/MarkdownText';
 import TimeCircle from './TimeCircle';
 import type { Goal, TimeEntry, Todo } from '../../types';
 import { CATEGORY_COLORS, getLocalDateString, normalizeCategory } from '../../constants';
@@ -51,8 +53,19 @@ const timeToMinutes = (time: string) => {
   return h * 60 + m;
 };
 
+const getEntryTimelineRange = (entry: Pick<TimeEntry, 'startTime' | 'endTime'>) => {
+  const start = timeToMinutes(entry.startTime);
+  const end = timeToMinutes(entry.endTime);
+
+  if (start > end) {
+    return { start: start - 24 * 60, end };
+  }
+
+  return { start, end };
+};
+
 const minutesToTime = (minutes: number) =>
-  `${Math.floor(minutes / 60).toString().padStart(2, '0')}:${(minutes % 60).toString().padStart(2, '0')}`;
+  `${Math.floor(((minutes % (24 * 60)) + 24 * 60) / 60 % 24).toString().padStart(2, '0')}:${(((minutes % 60) + 60) % 60).toString().padStart(2, '0')}`;
 
 const formatDateLabel = (selectedDate: string, isToday: boolean) => {
   const [y, m, d] = selectedDate.split('-').map(Number);
@@ -75,6 +88,13 @@ const formatDuration = (minutes: number) => {
   const rest = minutes % 60;
   if (rest === 0) return `${hours} 小时`;
   return `${hours} 小时 ${rest} 分钟`;
+};
+
+const formatTimelineStart = (item: TimelineItem) => {
+  if (item.itemType === 'entry' && timeToMinutes(item.startTime) > timeToMinutes(item.endTime)) {
+    return `前一天 ${item.startTime}`;
+  }
+  return item.startTime;
 };
 
 export default function TimeView({
@@ -101,7 +121,7 @@ export default function TimeView({
   const timelineItems = useMemo<TimelineItem[]>(() => {
     const items = [...entries]
       .map((entry) => ({ ...entry, itemType: 'entry' as const }))
-      .sort((a, b) => a.startTime.localeCompare(b.startTime));
+      .sort((a, b) => getEntryTimelineRange(a).start - getEntryTimelineRange(b).start);
 
     const result: TimelineItem[] = [];
     let lastEndTime = '00:00';
@@ -110,13 +130,14 @@ export default function TimeView({
     let maxEntryEnd = 0;
 
     items.forEach((entry) => {
-      maxEntryEnd = Math.max(maxEntryEnd, timeToMinutes(entry.endTime));
+      maxEntryEnd = Math.max(maxEntryEnd, getEntryTimelineRange(entry).end);
     });
 
     const endMinutes = isToday ? Math.max(currentMinutes, maxEntryEnd) : 24 * 60;
 
     items.forEach((entry) => {
-      const entryStart = timeToMinutes(entry.startTime);
+      const range = getEntryTimelineRange(entry);
+      const entryStart = range.start;
       const lastEnd = timeToMinutes(lastEndTime);
 
       if (entryStart > lastEnd) {
@@ -134,8 +155,8 @@ export default function TimeView({
       }
 
       result.push(entry);
-      if (timeToMinutes(entry.endTime) > lastEnd) {
-        lastEndTime = entry.endTime;
+      if (range.end > lastEnd) {
+        lastEndTime = minutesToTime(range.end);
       }
     });
 
@@ -198,7 +219,7 @@ export default function TimeView({
         rightIcons={<BarChart2 size={22} />}
       />
 
-      <div className="bg-white px-4 py-2 flex items-center justify-end border-b border-gray-50">
+      <div className="flex items-center justify-end border-b border-gray-50 bg-white px-4 py-2">
         <button
           onClick={() => onTabChange('analysis')}
           className="flex items-center gap-2 text-sm text-[#6DADD1] active:opacity-70"
@@ -208,7 +229,7 @@ export default function TimeView({
         </button>
       </div>
 
-      <div className="bg-white relative">
+      <div className="relative bg-white lg:flex lg:justify-center lg:py-4">
         <TimeCircle
           entries={entries}
           onSelectEntry={handleCircleSelect}
@@ -218,34 +239,41 @@ export default function TimeView({
         {activeTimer && isToday && (
           <button
             onClick={onTimerClick}
-            className="absolute top-4 right-4 rounded-full bg-yellow-400 px-3 py-1 text-xs font-bold text-white shadow-[0_0_12px_rgba(250,204,21,0.5)]"
+            className="absolute right-4 top-4 rounded-full bg-yellow-400 px-3 py-1 text-xs font-bold text-white shadow-[0_0_12px_rgba(250,204,21,0.5)]"
           >
             {activeTimer.goal.category} · {elapsed}
           </button>
         )}
       </div>
 
-      <div className="mt-4 space-y-1">
+      <div className="mx-auto mt-4 max-w-5xl space-y-2.5 px-4 lg:px-6">
+        <AnimatePresence mode="popLayout">
         {activeTimer && isToday && (
-          <button
+          <motion.button
+            layout
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95 }}
             onClick={onTimerClick}
-            className="flex w-full items-center justify-between border-b border-yellow-100 bg-yellow-50 px-4 py-3 text-left active:bg-yellow-100 transition-colors"
+            className="flex w-full items-center justify-between rounded-2xl border border-indigo-100 bg-white p-4 text-left shadow-soft transition-transform active:scale-[0.98]"
           >
             <div className="flex items-center gap-4">
-              <span className="w-24 text-sm font-mono text-yellow-600">进行中</span>
-              <div
-                className="h-3 w-3 rounded-full"
-                style={{ backgroundColor: CATEGORY_COLORS[normalizeCategory(activeTimer.goal.category)] }}
-              />
+              <div className="flex flex-col items-center justify-center w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600">
+                 <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse mb-1" />
+                 <span className="text-[10px] font-medium font-mono">{elapsed}</span>
+              </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="font-medium text-yellow-700">{activeTimer.goal.category}</span>
-                  <span className="text-xs font-mono text-yellow-600">{elapsed}</span>
+                  <span className="font-medium text-slate-800">{activeTimer.goal.category}</span>
+                  <div
+                    className="h-2 w-2 rounded-full"
+                    style={{ backgroundColor: CATEGORY_COLORS[normalizeCategory(activeTimer.goal.category)] }}
+                  />
                 </div>
-                <p className="mt-0.5 text-xs text-yellow-500">正在记录：{activeTimer.goal.title}</p>
+                <p className="mt-0.5 text-xs text-slate-500 line-clamp-1">{activeTimer.goal.title}</p>
               </div>
             </div>
-          </button>
+          </motion.button>
         )}
 
         {timelineItems.length === 0 ? (
@@ -260,9 +288,12 @@ export default function TimeView({
             const durationLabel = formatDuration(item.durationMinutes);
 
             return (
-              <div
+              <motion.div
+                layout
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
                 key={item.id}
-                ref={(element) => {
+                ref={(element: HTMLDivElement | null) => {
                   if (item.itemType === 'entry') timelineRefs.current[item.id] = element;
                 }}
                 onClick={() => {
@@ -272,28 +303,25 @@ export default function TimeView({
                     onAddEntry({ startTime: item.startTime, endTime: item.endTime });
                   }
                 }}
-                className={`cursor-pointer border-b border-gray-50 px-4 py-3 transition-colors active:bg-gray-50 ${
-                  selectedEntry?.id === item.id ? 'bg-blue-50' : 'bg-white'
-                }`}
+                className={`cursor-pointer rounded-2xl px-4 py-3 transition-all active:scale-[0.98] lg:px-5 ${
+                  item.itemType === 'gap' ? 'border border-dashed border-slate-100 bg-white/55' : 'border border-slate-100 bg-white shadow-sm hover:shadow-soft'
+                } ${selectedEntry?.id === item.id ? 'ring-2 ring-indigo-500/50' : ''}`}
               >
-                <div className="flex items-start gap-3">
-                  <div className="w-[88px] shrink-0 pt-0.5 text-right">
-                    <p className="text-xs font-mono text-gray-500">{timeLabel}</p>
-                    <p className="mt-1 text-[11px] text-gray-300">{durationLabel}</p>
+                <div className="grid grid-cols-[96px_minmax(0,1fr)] items-start gap-4 lg:grid-cols-[120px_minmax(0,1fr)]">
+                  <div className="shrink-0 pt-0.5">
+                    <p className="font-mono text-[15px] font-bold text-slate-900">{formatTimelineStart(item)}</p>
+                    <p className="mt-1 font-mono text-xs font-semibold text-slate-700">{item.endTime}</p>
+                    <p className="mt-2 inline-flex rounded-lg bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600">{durationLabel}</p>
                   </div>
 
-                  <div className="relative flex w-4 shrink-0 justify-center">
-                    <div className="absolute inset-y-0 w-px bg-gray-100" />
-                    <div className="mt-1.5 h-2.5 w-2.5 rounded-full z-10" style={{ backgroundColor: color }} />
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className={`text-sm ${item.itemType === 'gap' ? 'text-gray-400' : 'font-medium text-gray-700'}`}>
+                  <div className="relative min-w-0 border-l border-slate-100 pl-4">
+                    <span className="absolute -left-[5px] top-1.5 h-2.5 w-2.5 rounded-full ring-4 ring-white" style={{ backgroundColor: color }} />
+                    <div className="mb-1 flex items-center gap-2">
+                      <span className={`text-sm ${item.itemType === 'gap' ? 'text-slate-400' : 'font-medium text-slate-800'}`}>
                         {item.category}
                       </span>
                       {item.itemType === 'entry' && getPhotoCount(item) > 0 && (
-                        <span className="flex items-center gap-0.5 text-[10px] text-gray-400">
+                        <span className="flex items-center gap-0.5 text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full">
                           <Camera size={10} />
                           {getPhotoCount(item)}
                         </span>
@@ -301,7 +329,7 @@ export default function TimeView({
                     </div>
 
                     {item.itemType === 'entry' && item.note && (
-                      <p className="mt-1 text-sm leading-relaxed text-gray-500 line-clamp-2">{item.note}</p>
+                      <MarkdownText text={item.note} className="line-clamp-2 text-sm leading-relaxed text-slate-500" />
                     )}
 
                     {item.itemType === 'entry' && (item.linkedTodoId || item.linkedGoalId) && (
@@ -310,8 +338,8 @@ export default function TimeView({
                           (() => {
                             const todo = todos.find((currentTodo) => currentTodo.id === item.linkedTodoId);
                             return todo ? (
-                              <span className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[9px] text-blue-500 bg-blue-50">
-                                <CheckSquare size={8} />
+                              <span className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] text-indigo-600 bg-indigo-50 border border-indigo-100">
+                                <CheckSquare size={10} />
                                 {todo.title}
                               </span>
                             ) : null;
@@ -321,8 +349,8 @@ export default function TimeView({
                           (() => {
                             const goal = goals.find((currentGoal) => currentGoal.id === item.linkedGoalId);
                             return goal ? (
-                              <span className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[9px] text-amber-500 bg-amber-50">
-                                <Target size={8} />
+                              <span className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] text-amber-600 bg-amber-50 border border-amber-100">
+                                <Target size={10} />
                                 {goal.title}
                               </span>
                             ) : null;
@@ -330,19 +358,16 @@ export default function TimeView({
                       </div>
                     )}
                   </div>
-
-                  <div className="pt-1">
-                    {item.itemType === 'entry' && <ChevronRightSmall size={14} className="text-gray-300" />}
-                  </div>
                 </div>
-              </div>
+              </motion.div>
             );
           })
         )}
+        </AnimatePresence>
       </div>
 
       {uncompletedTodos.length > 0 && isToday && (
-        <div className="mt-4 px-4">
+        <div className="mx-auto mt-4 max-w-5xl px-4 lg:px-6">
           <div className="mb-2 flex items-center justify-between">
             <h3 className="text-sm font-bold text-gray-600">今日待办 ({uncompletedTodos.length})</h3>
             <button onClick={() => onTabChange('todo')} className="text-xs text-[#6DADD1]">

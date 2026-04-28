@@ -1,51 +1,56 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
 import { X, Camera, ImagePlus, Save, Pencil, Maximize2, Minimize2, Bold, Italic, List, ListOrdered, Hash, Link2, CheckSquare, Target, ChevronDown } from 'lucide-react';
 import type { TimeEntry, Todo, Goal } from '../../types';
-import { CATEGORY_COLORS } from '../../constants';
+import { CATEGORY_COLORS, CATEGORY_VALUES, type CategoryType } from '../../constants';
 import { uploadPhoto, deletePhoto } from '../../api/entries';
 import PhotoThumbnail from './PhotoThumbnail';
+import TimeWheelPicker from '../common/TimeWheelPicker';
+import MarkdownText from '../common/MarkdownText';
 
 interface QuickNoteModalProps {
   isOpen: boolean;
   onClose: () => void;
   entry: TimeEntry | null;
-  onSave: (entryId: string, note: string, linkedTodoId?: string, linkedGoalId?: string) => void;
+  onSave: (entryId: string, note: string, linkedTodoId?: string, linkedGoalId?: string) => void | Promise<void>;
   onEdit: (entry: TimeEntry) => void;
+  onUpdateTime?: (entryId: string, data: Partial<Pick<TimeEntry, 'startTime' | 'endTime' | 'durationMinutes' | 'category'>>) => boolean | void | Promise<boolean | void>;
   onPhotoChange: () => void;
   todos?: Todo[];
   goals?: Goal[];
 }
 
-// Simple markdown renderer
-function renderMarkdown(text: string): string {
-  if (!text) return '';
-  return text
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/^### (.+)$/gm, '<h3 class="text-base font-bold mt-3 mb-1">$1</h3>')
-    .replace(/^## (.+)$/gm, '<h2 class="text-lg font-bold mt-3 mb-1">$1</h2>')
-    .replace(/^# (.+)$/gm, '<h1 class="text-xl font-bold mt-3 mb-1">$1</h1>')
-    .replace(/^- (.+)$/gm, '<li class="ml-4 list-disc">$1</li>')
-    .replace(/^\d+\. (.+)$/gm, '<li class="ml-4 list-decimal">$1</li>')
-    .replace(/\n/g, '<br/>');
+function calculateDuration(start: string, end: string) {
+  const [h1, m1] = start.split(':').map(Number);
+  const [h2, m2] = end.split(':').map(Number);
+  let diff = h2 * 60 + m2 - (h1 * 60 + m1);
+  if (diff < 0) diff += 24 * 60;
+  return diff;
 }
 
-export default function QuickNoteModal({ isOpen, onClose, entry, onSave, onEdit, onPhotoChange, todos = [], goals = [] }: QuickNoteModalProps) {
+export default function QuickNoteModal({ isOpen, onClose, entry, onSave, onEdit, onUpdateTime, onPhotoChange, todos = [], goals = [] }: QuickNoteModalProps) {
   const [note, setNote] = useState('');
+  const [category, setCategory] = useState<CategoryType>('学习');
+  const [startTime, setStartTime] = useState('');
+  const [endTime, setEndTime] = useState('');
   const [saving, setSaving] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [activeTimeField, setActiveTimeField] = useState<'start' | 'end' | null>(null);
+  const [timeDraft, setTimeDraft] = useState('');
   const [linkedTodoId, setLinkedTodoId] = useState<string | undefined>();
   const [linkedGoalId, setLinkedGoalId] = useState<string | undefined>();
   const [showTodoPicker, setShowTodoPicker] = useState(false);
   const [showGoalPicker, setShowGoalPicker] = useState(false);
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Initialize from entry
   useEffect(() => {
     if (entry) {
       setNote(entry.note || '');
+      setCategory(entry.category);
+      setStartTime(entry.startTime);
+      setEndTime(entry.endTime);
       setLinkedTodoId(entry.linkedTodoId);
       setLinkedGoalId(entry.linkedGoalId);
     }
@@ -56,10 +61,32 @@ export default function QuickNoteModal({ isOpen, onClose, entry, onSave, onEdit,
     if (!isOpen) {
       setExpanded(false);
       setShowPreview(false);
+      setActiveTimeField(null);
       setShowTodoPicker(false);
       setShowGoalPicker(false);
+      setShowCategoryPicker(false);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!activeTimeField) return;
+    const previousOverflow = document.body.style.overflow;
+    const preventBackgroundScroll = (event: Event) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest('[data-time-wheel-picker]')) return;
+      event.preventDefault();
+    };
+
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('wheel', preventBackgroundScroll, { passive: false, capture: true });
+    window.addEventListener('touchmove', preventBackgroundScroll, { passive: false, capture: true });
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('wheel', preventBackgroundScroll, { capture: true });
+      window.removeEventListener('touchmove', preventBackgroundScroll, { capture: true });
+    };
+  }, [activeTimeField]);
 
   const insertMarkdown = useCallback((prefix: string, suffix: string = '') => {
     const ta = textareaRef.current;
@@ -97,35 +124,73 @@ export default function QuickNoteModal({ isOpen, onClose, entry, onSave, onEdit,
   const handleSave = async () => {
     setSaving(true);
     try {
-      onSave(entry.id, note, linkedTodoId, linkedGoalId);
+      const durationMinutes = calculateDuration(startTime, endTime);
+      if (
+        onUpdateTime &&
+        (startTime !== entry.startTime || endTime !== entry.endTime || durationMinutes !== entry.durationMinutes || category !== entry.category)
+      ) {
+        const updated = await onUpdateTime(entry.id, { startTime, endTime, durationMinutes, category });
+        if (updated === false) return;
+      }
+      await onSave(entry.id, note, linkedTodoId, linkedGoalId);
       onClose();
     } finally {
       setSaving(false);
     }
   };
 
+  const openTimeField = (field: 'start' | 'end') => {
+    setActiveTimeField(field);
+    setTimeDraft(field === 'start' ? startTime : endTime);
+  };
+
+  const commitTimeDraft = () => {
+    if (activeTimeField === 'start') setStartTime(timeDraft);
+    if (activeTimeField === 'end') setEndTime(timeDraft);
+    setActiveTimeField(null);
+  };
+
+  const switchTimeField = (field: 'start' | 'end') => {
+    if (activeTimeField === 'start') setStartTime(timeDraft);
+    if (activeTimeField === 'end') setEndTime(timeDraft);
+    setActiveTimeField(field);
+    setTimeDraft(field === 'start' ? (activeTimeField === 'start' ? timeDraft : startTime) : (activeTimeField === 'end' ? timeDraft : endTime));
+  };
+
   const linkedTodo = todos.find(t => t.id === linkedTodoId);
   const linkedGoal = goals.find(g => g.id === linkedGoalId);
   const uncompletedTodos = todos.filter(t => !t.completed && !t.isArchived);
+  const durationMinutes = startTime && endTime ? calculateDuration(startTime, endTime) : entry.durationMinutes;
 
   return (
     <div className="fixed inset-0 z-[80] flex flex-col justify-end">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <motion.div
-        initial={{ y: "100%" }}
-        animate={{ y: 0 }}
-        exit={{ y: "100%" }}
-        transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-        className={`relative bg-white z-10 flex flex-col ${expanded ? 'h-full rounded-none' : 'rounded-t-3xl max-h-[85vh]'}`}
+      <div
+        className={`relative z-10 flex flex-col bg-white shadow-2xl ${expanded ? 'h-full rounded-none' : 'max-h-[85vh] rounded-t-3xl'}`}
       >
         {/* Header */}
         <div className="px-5 pt-4 pb-3 flex items-center justify-between border-b border-gray-100 flex-shrink-0">
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: CATEGORY_COLORS[entry.category] }} />
+            <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: CATEGORY_COLORS[category] }} />
             <div className="min-w-0">
-              <span className="text-sm font-medium text-gray-800">{entry.category}</span>
-              <span className="text-xs text-gray-400 ml-2">{entry.startTime} ~ {entry.endTime}</span>
-              <span className="text-xs text-gray-400 ml-2">{entry.durationMinutes}分钟</span>
+              <button
+                onClick={() => {
+                  setShowCategoryPicker(!showCategoryPicker);
+                  setShowTodoPicker(false);
+                  setShowGoalPicker(false);
+                }}
+                className="rounded-full px-2 py-1 text-sm font-semibold text-gray-800 transition-colors hover:bg-slate-100"
+              >
+                {category}
+              </button>
+              <button
+                onClick={() => openTimeField('start')}
+                className="ml-2 rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-200"
+                title="编辑时间"
+              >
+                {startTime} ~ {endTime}
+              </button>
+              <span className="text-xs text-gray-400 ml-1">{durationMinutes}分钟</span>
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -135,6 +200,29 @@ export default function QuickNoteModal({ isOpen, onClose, entry, onSave, onEdit,
             <button onClick={onClose} className="p-2 bg-gray-100 rounded-full"><X size={18} /></button>
           </div>
         </div>
+
+        {showCategoryPicker && (
+          <div className="flex-shrink-0 border-b border-gray-50 px-5 py-3">
+            <div className="grid grid-cols-5 gap-2">
+              {CATEGORY_VALUES.filter((cat) => cat !== '未记录').map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => {
+                    setCategory(cat);
+                    setShowCategoryPicker(false);
+                  }}
+                  className={`rounded-full px-3 py-2 text-xs font-bold text-white transition-transform active:scale-95 ${
+                    category === cat ? 'ring-2 ring-slate-300 ring-offset-2' : ''
+                  }`}
+                  style={{ backgroundColor: CATEGORY_COLORS[cat] }}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Linked items display */}
         {(linkedTodo || linkedGoal) && (
@@ -180,10 +268,7 @@ export default function QuickNoteModal({ isOpen, onClose, entry, onSave, onEdit,
         {/* Note input / Preview */}
         <div className={`px-5 py-4 ${expanded ? 'flex-1 overflow-y-auto' : ''}`}>
           {showPreview ? (
-            <div
-              className="prose prose-sm max-w-none text-gray-700 leading-relaxed min-h-[200px]"
-              dangerouslySetInnerHTML={{ __html: renderMarkdown(note) }}
-            />
+            <MarkdownText text={note} className="min-h-[200px] max-w-none text-sm leading-relaxed text-gray-700" />
           ) : (
             <textarea
               ref={textareaRef}
@@ -208,9 +293,8 @@ export default function QuickNoteModal({ isOpen, onClose, entry, onSave, onEdit,
         )}
 
         {/* Todo picker */}
-        <AnimatePresence>
-          {showTodoPicker && (
-            <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden border-t border-gray-100 flex-shrink-0">
+        {showTodoPicker && (
+            <div className="flex-shrink-0 overflow-hidden border-t border-gray-100">
               <div className="px-5 py-3 max-h-[200px] overflow-y-auto">
                 <p className="text-xs text-gray-400 mb-2">选择关联待办</p>
                 {uncompletedTodos.length === 0 ? (
@@ -225,14 +309,12 @@ export default function QuickNoteModal({ isOpen, onClose, entry, onSave, onEdit,
                   ))
                 )}
               </div>
-            </motion.div>
+            </div>
           )}
-        </AnimatePresence>
 
         {/* Goal picker */}
-        <AnimatePresence>
-          {showGoalPicker && (
-            <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden border-t border-gray-100 flex-shrink-0">
+        {showGoalPicker && (
+            <div className="flex-shrink-0 overflow-hidden border-t border-gray-100">
               <div className="px-5 py-3 max-h-[200px] overflow-y-auto">
                 <p className="text-xs text-gray-400 mb-2">选择关联目标</p>
                 {goals.length === 0 ? (
@@ -247,9 +329,8 @@ export default function QuickNoteModal({ isOpen, onClose, entry, onSave, onEdit,
                   ))
                 )}
               </div>
-            </motion.div>
+            </div>
           )}
-        </AnimatePresence>
 
         {/* Actions */}
         <div className="px-5 py-4 border-t border-gray-100 flex items-center gap-2 flex-shrink-0">
@@ -286,7 +367,42 @@ export default function QuickNoteModal({ isOpen, onClose, entry, onSave, onEdit,
             <Save size={16} className="inline mr-1" />保存
           </button>
         </div>
-      </motion.div>
+
+        {activeTimeField && (
+          <div
+            className="fixed inset-0 z-[120] flex items-end bg-slate-950/20 lg:items-start lg:justify-center lg:pt-16"
+            onWheel={(event) => event.preventDefault()}
+            onTouchMove={(event) => event.preventDefault()}
+          >
+            <button className="absolute inset-0 cursor-default" onClick={() => setActiveTimeField(null)} aria-label="关闭时间选择" />
+            <TimeWheelPicker
+              title={activeTimeField === 'start' ? '选择开始时间' : '选择结束时间'}
+              value={timeDraft}
+              onChange={setTimeDraft}
+              onClose={commitTimeDraft}
+              className="w-full rounded-b-none lg:max-w-sm lg:rounded-b-[28px]"
+              headerExtra={
+                <div className="grid grid-cols-2 rounded-2xl bg-slate-100 p-1">
+                  <button
+                    type="button"
+                    onClick={() => switchTimeField('start')}
+                    className={`rounded-xl py-2 text-sm font-bold ${activeTimeField === 'start' ? 'bg-white text-teal-700 shadow-sm' : 'text-slate-500'}`}
+                  >
+                    开始 {activeTimeField === 'start' ? timeDraft : startTime}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => switchTimeField('end')}
+                    className={`rounded-xl py-2 text-sm font-bold ${activeTimeField === 'end' ? 'bg-white text-teal-700 shadow-sm' : 'text-slate-500'}`}
+                  >
+                    结束 {activeTimeField === 'end' ? timeDraft : endTime}
+                  </button>
+                </div>
+              }
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

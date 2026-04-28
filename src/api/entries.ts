@@ -6,6 +6,11 @@ export async function getEntries(date: string): Promise<TimeEntry[]> {
   return res.data.entries;
 }
 
+export async function getEntriesRange(from: string, to: string): Promise<TimeEntry[]> {
+  const res = await client.get('/entries', { params: { from, to } });
+  return res.data.entries;
+}
+
 export async function createEntry(data: Partial<TimeEntry>): Promise<TimeEntry> {
   const res = await client.post('/entries', {
     date: data.date,

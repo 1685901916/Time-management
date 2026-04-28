@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { ChevronLeft, ChevronRight, BarChart2, Download, Trash, ArrowLeftRight } from 'lucide-react';
 import Header from '../common/Header';
+import MarkdownText from '../common/MarkdownText';
 import type { TimeEntry } from '../../types';
 import { CATEGORY_COLORS, getLocalDateString } from '../../constants';
 
@@ -71,7 +72,11 @@ export default function PlanView({ entries, activeTimer, selectedDate, isToday, 
                   <span className="text-[10px] text-gray-400 font-mono">{entry.startTime}~{entry.endTime}</span>
                   <span className="text-[10px] font-bold" style={{ color: CATEGORY_COLORS[entry.category] }}>{entry.category}</span>
                 </div>
-                <div className="text-xs text-gray-600 mt-1 truncate">{entry.note || entry.category}</div>
+                {entry.note ? (
+                  <MarkdownText text={entry.note} className="mt-1 truncate text-xs text-gray-600" />
+                ) : (
+                  <div className="mt-1 truncate text-xs text-gray-600">{entry.category}</div>
+                )}
               </div>
             ))}
             <div className="bg-white rounded-xl p-4 border border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400">

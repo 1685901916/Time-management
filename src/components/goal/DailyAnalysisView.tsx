@@ -13,6 +13,7 @@ import {
   Save,
 } from 'lucide-react';
 import Header from '../common/Header';
+import MarkdownText from '../common/MarkdownText';
 import { CATEGORY_COLORS, type CategoryType, getLocalDateString, normalizeCategory } from '../../constants';
 import type { TimeEntry } from '../../types';
 import { createProxyChatCompletion } from '../../api/ai';
@@ -33,28 +34,38 @@ interface AnalysisResult {
   score: number;
 }
 
+type CategoryStat = {
+  category: CategoryType;
+  minutes: number;
+};
+
 const REVIEW_TEMPLATES = [
   {
     key: 'timeline',
-    label: '时间开始日记',
-    content: (date: string) => `${date}
+    label: '时间开销日记',
+    content: (date: string, entries: TimeEntry[], categoryStats: CategoryStat[]) => buildTimeDiary(date, entries, categoryStats),
+  },
+  {
+    key: 'review',
+    label: '日终复盘',
+    content: (_date: string, entries: TimeEntry[], categoryStats: CategoryStat[]) => `【今日概览】
+总记录：${formatMinutes(getTotalRecordedMinutes(entries))}
+主要分类：${categoryStats[0] ? `${categoryStats[0].category} ${formatMinutes(categoryStats[0].minutes)}` : '暂无'}
 
-【今天做了什么】
+【做得好的地方】
 - 
 
-【时间段回顾】
-- 早上：
-- 下午：
-- 晚上：
+【可以改进的地方】
+- 
 
-【最关键的一件事】
+【明天最重要的一件事】
 - 
 `,
   },
   {
     key: 'questions',
     label: '四个问题',
-    content: () => `【总结】
+    content: () => `【四个问题】
 今天最满意的一件事：
 
 今天最浪费时间的地方：
@@ -67,8 +78,8 @@ const REVIEW_TEMPLATES = [
   {
     key: 'axis',
     label: '时间轴',
-    content: () => `【时间轴】
-06:00 -
+    content: (_date: string, entries: TimeEntry[]) => `【时间轴】
+${entries.length > 0 ? entries.map((entry) => `${entry.startTime} - ${entry.endTime}｜${entry.category}${entry.note ? `｜${entry.note}` : ''}`).join('\n') : `06:00 -
 07:00 -
 08:00 -
 09:00 -
@@ -85,23 +96,23 @@ const REVIEW_TEMPLATES = [
 20:00 -
 21:00 -
 22:00 -
-23:00 -
+23:00 -`}
 `,
   },
   {
     key: 'overview',
     label: '概览',
-    content: () => `【学习】
-今天完成了：
+    content: (_date: string, _entries: TimeEntry[], categoryStats: CategoryStat[]) => `【分类概览】
+${categoryStats.length > 0 ? categoryStats.map((stat) => `- ${stat.category}：${formatMinutes(stat.minutes)}`).join('\n') : '- 暂无记录'}
 
-【运动】
-今天运动情况：
+【今天完成了】
+- 
 
-【目标】
-当前最重要目标：
+【需要减少的时间】
+- 
 
-【鼓励】
-给自己一句话：
+【给自己一句话】
+- 
 `,
   },
 ] as const;
@@ -114,7 +125,7 @@ function formatMinutes(minutes: number) {
   return `${hours} 小时 ${rest} 分钟`;
 }
 
-function getCategoryStats(entries: TimeEntry[]) {
+function getCategoryStats(entries: TimeEntry[]): CategoryStat[] {
   const map: Record<string, number> = {};
   for (const entry of entries) {
     map[entry.category] = (map[entry.category] || 0) + entry.durationMinutes;
@@ -126,6 +137,59 @@ function getCategoryStats(entries: TimeEntry[]) {
 
 function getTotalRecordedMinutes(entries: TimeEntry[]) {
   return entries.reduce((sum, entry) => sum + entry.durationMinutes, 0);
+}
+
+function timeToMinutes(time: string) {
+  const [hour, minute] = time.split(':').map(Number);
+  return hour * 60 + minute;
+}
+
+function getTimelineStart(entry: Pick<TimeEntry, 'startTime' | 'endTime'>) {
+  const start = timeToMinutes(entry.startTime);
+  const end = timeToMinutes(entry.endTime);
+  return start > end ? start - 24 * 60 : start;
+}
+
+function formatEntryRange(entry: Pick<TimeEntry, 'startTime' | 'endTime'>) {
+  return timeToMinutes(entry.startTime) > timeToMinutes(entry.endTime)
+    ? `前一天 ${entry.startTime} - ${entry.endTime}`
+    : `${entry.startTime} - ${entry.endTime}`;
+}
+
+function buildTimeDiary(date: string, entries: TimeEntry[], categoryStats: CategoryStat[]) {
+  const sorted = [...entries].sort((a, b) => getTimelineStart(a) - getTimelineStart(b));
+
+  if (sorted.length === 0) {
+    return `${date}
+
+【时间开销日记】
+暂无时间记录。
+`;
+  }
+
+  const lines = categoryStats.flatMap((stat) => {
+    const items = sorted.filter((entry) => normalizeCategory(entry.category) === stat.category);
+    return [
+      `【${stat.category}】${formatMinutes(stat.minutes)}`,
+      ...items.map((entry, index) => {
+        const note = entry.note?.trim();
+        return `${index + 1}. ${formatEntryRange(entry)} - ${formatMinutes(entry.durationMinutes)}${note ? `\n   记录：${note}` : ''}`;
+      }),
+      '',
+    ];
+  });
+
+  return `${date}
+
+【时间开销日记】
+总记录：${formatMinutes(getTotalRecordedMinutes(entries))}
+
+${lines.join('\n').trim()}
+`;
+}
+
+function normalizeGeneratedReview(content: string) {
+  return content.replace(/\*\*(.+?)\*\*/g, '$1').replace(/\s+分钟/g, '分钟').replace(/\s+小时/g, '小时');
 }
 
 function shiftDate(dateStr: string, days: number) {
@@ -157,23 +221,29 @@ export default function DailyAnalysisView({
   const [reviewLoading, setReviewLoading] = useState(false);
   const [reviewSaving, setReviewSaving] = useState(false);
   const [reviewMessage, setReviewMessage] = useState('');
+  const [reviewEditing, setReviewEditing] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<(typeof REVIEW_TEMPLATES)[number]['key']>('timeline');
 
   const sortedEntries = useMemo(
-    () => [...entries].sort((a, b) => a.startTime.localeCompare(b.startTime)),
+    () => [...entries].sort((a, b) => getTimelineStart(a) - getTimelineStart(b)),
     [entries]
   );
   const categoryStats = useMemo(() => getCategoryStats(entries), [entries]);
   const totalMinutes = useMemo(() => getTotalRecordedMinutes(entries), [entries]);
+  const topCategory = categoryStats[0];
+  const noteCount = useMemo(() => entries.filter((entry) => entry.note?.trim()).length, [entries]);
 
   const loadReview = useCallback(async () => {
     setReviewLoading(true);
     setReviewMessage('');
     try {
       const review = await getDailyReview(selectedDate);
-      setReviewContent(review?.content || '');
+      const content = normalizeGeneratedReview(review?.content || '');
+      setReviewContent(content);
+      setReviewEditing(!content.trim());
     } catch {
       setReviewContent('');
+      setReviewEditing(true);
     } finally {
       setReviewLoading(false);
     }
@@ -189,12 +259,13 @@ export default function DailyAnalysisView({
     (templateKey: (typeof REVIEW_TEMPLATES)[number]['key']) => {
       const template = REVIEW_TEMPLATES.find((item) => item.key === templateKey);
       if (!template) return;
-      const block = template.content(selectedDate);
+      const block = normalizeGeneratedReview(template.content(selectedDate, sortedEntries, categoryStats));
       setSelectedTemplate(templateKey);
       setReviewMessage('');
       setReviewContent((previous) => (previous.trim() ? `${previous.trim()}\n\n${block}` : block));
+      setReviewEditing(false);
     },
-    [selectedDate]
+    [categoryStats, selectedDate, sortedEntries]
   );
 
   const handleSaveReview = useCallback(async () => {
@@ -294,141 +365,194 @@ ${entrySummary}
           <p className="mt-1 text-sm">先记录一些时间内容，再来生成总结。</p>
         </div>
       ) : (
-        <div className="space-y-4 p-4">
-          <div className="rounded-2xl bg-white p-4 shadow-sm">
-            <div className="mb-3 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <BarChart3 size={18} className="text-[#5B8FF9]" />
-                <span className="font-semibold text-gray-700">分类概览</span>
+        <div className="mx-auto max-w-7xl space-y-4 px-5 py-5 lg:px-8">
+          <div className="rounded-2xl border border-slate-200/70 bg-white px-5 py-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+            <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr_1fr]">
+              <div>
+                <p className="text-xs font-semibold text-slate-400">总记录</p>
+                <div className="mt-1 text-[28px] font-semibold tracking-tight text-slate-800">{formatMinutes(totalMinutes)}</div>
+                <p className="mt-1 text-sm text-slate-500">{sortedEntries.length} 条记录 · {noteCount} 条有备注</p>
               </div>
-              <span className="text-sm text-gray-400">{formatMinutes(totalMinutes)}</span>
-            </div>
-
-            <div className="mb-3 flex h-6 overflow-hidden rounded-full">
-              {categoryStats.map((stat) => (
-                <div
-                  key={stat.category}
-                  title={`${stat.category}: ${formatMinutes(stat.minutes)}`}
-                  style={{ width: `${(stat.minutes / totalMinutes) * 100}%`, backgroundColor: CATEGORY_COLORS[stat.category as CategoryType] }}
-                />
-              ))}
-            </div>
-
-            <div className="flex flex-wrap gap-x-4 gap-y-1.5">
-              {categoryStats.map((stat) => (
-                <div key={stat.category} className="flex items-center gap-1.5 text-xs text-gray-600">
-                  <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[stat.category as CategoryType] }} />
-                  <span>{stat.category}</span>
-                  <span className="text-gray-400">{formatMinutes(stat.minutes)}</span>
+              <div className="border-slate-100 lg:border-l lg:pl-5">
+                <p className="text-xs font-semibold text-slate-400">主要去向</p>
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[topCategory.category] }} />
+                  <span className="text-xl font-semibold text-slate-800">{topCategory.category}</span>
+                  <span className="text-sm font-medium text-slate-400">{Math.round((topCategory.minutes / totalMinutes) * 100)}%</span>
                 </div>
-              ))}
+                <p className="mt-1 text-sm text-slate-500">{formatMinutes(topCategory.minutes)}</p>
+              </div>
+              <div className="border-slate-100 lg:border-l lg:pl-5">
+                <p className="text-xs font-semibold text-slate-400">复盘状态</p>
+                <div className="mt-2 text-xl font-semibold text-slate-800">{reviewContent.trim() ? '已记录' : '未填写'}</div>
+                <p className="mt-1 text-sm text-slate-500">用模板生成后再手动修正。</p>
+              </div>
             </div>
           </div>
 
-          <div className="rounded-2xl bg-white p-4 shadow-sm">
-            <div className="mb-4 flex items-center gap-2">
-              <Clock size={18} className="text-[#5B8FF9]" />
-              <span className="font-semibold text-gray-700">时间线</span>
-            </div>
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,0.98fr)_minmax(480px,1.02fr)]">
+            <div className="space-y-5">
+              <div className="rounded-2xl border border-slate-200/70 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+                <div className="mb-4 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <BarChart3 size={18} className="text-blue-600" />
+                    <span className="font-semibold text-slate-800">分类概览</span>
+                  </div>
+                  <span className="text-sm font-bold text-slate-500">{formatMinutes(totalMinutes)}</span>
+                </div>
 
-            <div className="space-y-0">
-              {sortedEntries.map((entry, index) => (
-                <div key={entry.id} className="flex gap-3">
-                  <div className="flex w-4 shrink-0 flex-col items-center">
+                <div className="mb-4 flex h-3 overflow-hidden rounded-full bg-slate-100">
+                  {categoryStats.map((stat) => (
                     <div
-                      className="mt-1.5 h-3 w-3 rounded-full ring-2 ring-white shadow-sm"
-                      style={{ backgroundColor: CATEGORY_COLORS[normalizeCategory(entry.category)] || '#ccc' }}
+                      key={stat.category}
+                      title={`${stat.category}: ${formatMinutes(stat.minutes)}`}
+                      style={{ width: `${(stat.minutes / totalMinutes) * 100}%`, backgroundColor: CATEGORY_COLORS[stat.category] }}
                     />
-                    {index < sortedEntries.length - 1 && (
-                      <div
-                        className="min-h-[24px] w-0.5 flex-1"
-                        style={{ backgroundColor: CATEGORY_COLORS[normalizeCategory(entry.category)] || '#ccc', opacity: 0.3 }}
-                      />
-                    )}
-                  </div>
+                  ))}
+                </div>
 
-                  <div className={`${index < sortedEntries.length - 1 ? 'pb-3' : ''} flex-1`}>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-mono text-gray-400">
-                        {entry.startTime}-{entry.endTime}
-                      </span>
-                      <span
-                        className="rounded-full px-1.5 py-0.5 text-xs font-medium text-white"
-                        style={{ backgroundColor: CATEGORY_COLORS[normalizeCategory(entry.category)] || '#ccc' }}
-                      >
-                        {entry.category}
-                      </span>
-                      <span className="text-xs text-gray-300">{formatMinutes(entry.durationMinutes)}</span>
-                    </div>
-                    {entry.note && <p className="mt-0.5 text-sm leading-relaxed text-gray-500">{entry.note}</p>}
+                <div className="space-y-2">
+                  {categoryStats.map((stat) => {
+                    const percent = Math.round((stat.minutes / totalMinutes) * 100);
+                    return (
+                      <div key={stat.category} className="grid grid-cols-[12px_86px_minmax(0,1fr)_92px_44px] items-center gap-3 rounded-xl px-2 py-2 hover:bg-slate-50">
+                        <span className="h-3 w-3 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[stat.category] }} />
+                        <span className="min-w-0 font-semibold text-slate-700">{stat.category}</span>
+                        <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
+                          <div className="h-full rounded-full" style={{ width: `${percent}%`, backgroundColor: CATEGORY_COLORS[stat.category] }} />
+                        </div>
+                        <span className="text-right text-sm font-semibold text-slate-500">{formatMinutes(stat.minutes)}</span>
+                        <span className="text-right text-xs font-bold text-slate-400">{percent}%</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200/70 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+                <div className="mb-4 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Clock size={18} className="text-blue-600" />
+                    <span className="font-semibold text-slate-800">时间线</span>
+                  </div>
+                  <span className="text-xs text-slate-400">按实际时间顺序</span>
+                </div>
+
+                <div className="space-y-2">
+                  {sortedEntries.map((entry) => {
+                    const color = CATEGORY_COLORS[normalizeCategory(entry.category)] || '#CBD5E1';
+                    return (
+                      <div key={entry.id} className="grid grid-cols-[136px_minmax(0,1fr)] gap-4 rounded-xl border border-slate-100 bg-white px-4 py-3 transition-colors hover:bg-slate-50">
+                        <div>
+                          <p className="font-mono text-sm font-semibold text-slate-800">{formatEntryRange(entry)}</p>
+                          <p className="mt-2 inline-flex rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-500">{formatMinutes(entry.durationMinutes)}</p>
+                        </div>
+                        <div className="min-w-0 border-l border-slate-100 pl-4">
+                          <div className="flex items-center gap-2">
+                            <span className="h-3 w-3 rounded-full" style={{ backgroundColor: color }} />
+                            <span className="font-semibold text-slate-800">{entry.category}</span>
+                          </div>
+                          {entry.note ? (
+                            <MarkdownText text={entry.note} className="mt-1 line-clamp-2 text-sm leading-relaxed text-slate-500" />
+                          ) : (
+                            <p className="mt-1 text-sm text-slate-300">没有备注</p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-5">
+              <div className="rounded-2xl border border-slate-200/70 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+                <div className="mb-4 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <BookOpen size={18} className="text-slate-600" />
+                    <span className="font-semibold text-slate-800">复盘模板</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setReviewEditing((value) => !value)}
+                      className="rounded-lg bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                    >
+                      {reviewEditing ? '预览' : '编辑'}
+                    </button>
+                    <button
+                      onClick={handleSaveReview}
+                      disabled={reviewSaving || reviewLoading}
+                      className="flex items-center gap-1.5 rounded-lg bg-slate-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition-all hover:bg-slate-500 active:scale-95 disabled:opacity-50"
+                    >
+                      {reviewSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                      {reviewSaving ? '保存中...' : '保存'}
+                    </button>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
 
-          <div className="rounded-2xl bg-white p-4 shadow-sm">
-            <div className="mb-3 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <BookOpen size={18} className="text-[#6DADD1]" />
-                <span className="font-semibold text-gray-700">复盘模板</span>
+                <div className="mb-4 flex flex-wrap gap-2">
+                  {REVIEW_TEMPLATES.map((template) => (
+                    <button
+                      key={template.key}
+                      onClick={() => handleInsertTemplate(template.key)}
+                      className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors ${
+                        selectedTemplate === template.key ? 'bg-slate-200 text-slate-700 ring-1 ring-slate-200' : 'bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                      }`}
+                    >
+                      {template.label}
+                    </button>
+                  ))}
+                </div>
+
+                {reviewEditing ? (
+                  <textarea
+                    value={reviewContent}
+                    onChange={(event) => {
+                      setReviewContent(event.target.value);
+                      setReviewMessage('');
+                    }}
+                    placeholder={reviewLoading ? '加载中...' : '支持 Markdown：加粗、列表、标题。点击上方模板插入后可继续编辑。'}
+                    className="min-h-[420px] w-full resize-none rounded-xl border border-slate-200 bg-white p-4 text-[15px] font-medium leading-8 text-slate-600 outline-none transition-colors placeholder:font-medium placeholder:text-slate-400 focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setReviewEditing(true)}
+                    className="min-h-[420px] w-full rounded-xl border border-slate-200 bg-white p-4 text-left transition-colors hover:bg-slate-50"
+                  >
+                    {reviewContent.trim() ? (
+                      <MarkdownText text={reviewContent} className="text-[15px] font-medium leading-8 text-slate-600" />
+                    ) : (
+                      <span className="text-[15px] font-medium leading-8 text-slate-400">
+                        支持 Markdown：加粗、列表、标题。点击上方模板插入，或点击这里开始编辑。
+                      </span>
+                    )}
+                  </button>
+                )}
+
+                {reviewMessage && (
+                  <p className={`mt-2 text-xs ${reviewMessage === '已保存' ? 'text-green-600' : 'text-red-500'}`}>{reviewMessage}</p>
+                )}
               </div>
-              <button
-                onClick={handleSaveReview}
-                disabled={reviewSaving || reviewLoading}
-                className="flex items-center gap-1.5 rounded-full bg-[#6DADD1] px-3 py-1.5 text-xs font-medium text-white transition-all active:scale-95 disabled:opacity-50"
-              >
-                {reviewSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                {reviewSaving ? '保存中...' : '保存'}
-              </button>
-            </div>
 
-            <div className="mb-3 flex flex-wrap gap-2">
-              {REVIEW_TEMPLATES.map((template) => (
-                <button
-                  key={template.key}
-                  onClick={() => handleInsertTemplate(template.key)}
-                  className={`rounded-full px-3 py-1.5 text-sm transition-colors ${
-                    selectedTemplate === template.key ? 'bg-[#6DADD1] text-white' : 'bg-[#EEF5FA] text-[#5B8AA5]'
-                  }`}
-                >
-                  {template.label}
-                </button>
-              ))}
-            </div>
+              <div className="rounded-2xl border border-slate-200/70 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+                <div className="mb-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Brain size={18} className="text-slate-600" />
+                    <span className="font-semibold text-slate-800">AI 分析</span>
+                  </div>
+                  <button
+                    onClick={runAnalysis}
+                    disabled={analyzing}
+                    className="flex items-center gap-1.5 rounded-lg bg-slate-600 px-3 py-1.5 text-xs font-semibold text-white transition-all hover:bg-slate-500 active:scale-95 disabled:opacity-50"
+                  >
+                    {analyzing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                    {analyzing ? '分析中...' : analysis ? '重新分析' : '生成分析'}
+                  </button>
+                </div>
 
-            <textarea
-              value={reviewContent}
-              onChange={(event) => {
-                setReviewContent(event.target.value);
-                setReviewMessage('');
-              }}
-              placeholder={reviewLoading ? '加载中...' : '点击上方模板插入内容，然后编辑并保存'}
-              className="min-h-[320px] w-full resize-none rounded-2xl border border-gray-200 p-4 text-sm leading-7 outline-none focus:border-[#6DADD1]"
-            />
-
-            {reviewMessage && (
-              <p className={`mt-2 text-xs ${reviewMessage === '已保存' ? 'text-green-600' : 'text-red-500'}`}>{reviewMessage}</p>
-            )}
-          </div>
-
-          <div className="rounded-2xl bg-white p-4 shadow-sm">
-            <div className="mb-3 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Brain size={18} className="text-purple-500" />
-                <span className="font-semibold text-gray-700">AI 分析</span>
-              </div>
-              <button
-                onClick={runAnalysis}
-                disabled={analyzing}
-                className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 px-3 py-1.5 text-xs font-medium text-white transition-all active:scale-95 disabled:opacity-50"
-              >
-                {analyzing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                {analyzing ? '分析中...' : analysis ? '重新分析' : '生成分析'}
-              </button>
-            </div>
-
-            <AnimatePresence mode="wait">
+                <AnimatePresence mode="wait">
               {error && (
                 <motion.div
                   initial={{ opacity: 0, y: 5 }}
@@ -493,7 +617,9 @@ ${entrySummary}
               {!analysis && !error && !analyzing && (
                 <p className="py-4 text-center text-sm text-gray-400">点击上方按钮，基于当天记录生成 AI 分析。</p>
               )}
-            </AnimatePresence>
+                </AnimatePresence>
+              </div>
+            </div>
           </div>
         </div>
       )}

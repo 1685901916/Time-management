@@ -25,6 +25,27 @@ interface AppLayoutProps {
   onLogout: () => void;
 }
 
+const timeToMinutes = (time: string) => {
+  const [hour, minute] = time.split(':').map(Number);
+  return hour * 60 + minute;
+};
+
+const getComparableRange = (entry: Pick<TimeEntry, 'startTime' | 'endTime'>) => {
+  const start = timeToMinutes(entry.startTime);
+  const end = timeToMinutes(entry.endTime);
+  if (start > end) return { start: start - 24 * 60, end };
+  return { start, end };
+};
+
+const rangesOverlap = (
+  first: Pick<TimeEntry, 'startTime' | 'endTime'>,
+  second: Pick<TimeEntry, 'startTime' | 'endTime'>
+) => {
+  const a = getComparableRange(first);
+  const b = getComparableRange(second);
+  return Math.max(a.start, b.start) < Math.min(a.end, b.end);
+};
+
 export default function AppLayout({ user, onLogout }: AppLayoutProps) {
   const [activeTab, setActiveTab] = useState('time');
   const [selectedDate, setSelectedDate] = useState(getLocalDateString());
@@ -70,11 +91,24 @@ export default function AppLayout({ user, onLogout }: AppLayoutProps) {
 
   const handleSaveEntry = useCallback(
     async (entry: TimeEntry) => {
+      const entryDate = entry.date || selectedDate;
+      const conflicts = entries.filter(
+        (currentEntry) =>
+          currentEntry.date === entryDate &&
+          !currentEntry.isArchived &&
+          currentEntry.id !== entry.id &&
+          rangesOverlap(entry, currentEntry)
+      );
+
+      if (conflicts.length > 0) {
+        await Promise.all(conflicts.map((conflict) => deleteEntry(conflict.id)));
+      }
+
       if (entry.id && entries.some((currentEntry) => currentEntry.id === entry.id)) {
         await updateEntry(entry.id, entry);
       } else {
         await createEntry({
-          date: entry.date || selectedDate,
+          date: entryDate,
           startTime: entry.startTime,
           endTime: entry.endTime,
           category: entry.category,
@@ -84,7 +118,7 @@ export default function AppLayout({ user, onLogout }: AppLayoutProps) {
       }
       setEditingEntry(null);
     },
-    [entries, selectedDate, createEntry, updateEntry]
+    [entries, selectedDate, createEntry, updateEntry, deleteEntry]
   );
 
   const handleDeleteEntry = useCallback(
@@ -104,7 +138,6 @@ export default function AppLayout({ user, onLogout }: AppLayoutProps) {
       }
       startTimer(goal);
       setIsTimerOverlayVisible(true);
-      setActiveTab('time');
       setSelectedDate(getLocalDateString());
     },
     [activeTimer, startTimer]
@@ -120,10 +153,10 @@ export default function AppLayout({ user, onLogout }: AppLayoutProps) {
       `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
     const startStr = formatTime(startTime);
     const endStr = formatTime(endTime);
-    const startDateStr = getLocalDateString(startTime);
+    const endDateStr = getLocalDateString(endTime);
 
     await createEntry({
-      date: startDateStr,
+      date: endDateStr,
       startTime: startStr,
       endTime: endStr,
       category: activeTimer.goal.category,
@@ -149,7 +182,6 @@ export default function AppLayout({ user, onLogout }: AppLayoutProps) {
       if (created && !activeTimer) {
         startTimer(created);
         setIsTimerOverlayVisible(true);
-        setActiveTab('time');
         setSelectedDate(getLocalDateString());
       }
     },
@@ -284,10 +316,12 @@ export default function AppLayout({ user, onLogout }: AppLayoutProps) {
   };
 
   return (
-    <div className="relative mx-auto min-h-screen max-w-md overflow-x-hidden bg-[#F8FAFC] pb-20 font-sans text-gray-800 shadow-2xl">
-      {renderView()}
-
+    <div className="relative mx-auto min-h-screen w-full overflow-x-hidden bg-slate-50 pb-28 font-sans text-slate-800 shadow-2xl lg:pb-0 lg:shadow-none">
       <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+
+      <div className="lg:pl-64">
+        {renderView()}
+      </div>
 
       {isAddingGoal && <AddGoalView onSave={handleAddGoal} onCancel={() => setIsAddingGoal(false)} />}
 
@@ -330,6 +364,24 @@ export default function AppLayout({ user, onLogout }: AppLayoutProps) {
         onEdit={(entry) => {
           setQuickNoteEntry(null);
           setEditingEntry(entry);
+        }}
+        onUpdateTime={async (entryId, data) => {
+          const currentEntry = entries.find((entry) => entry.id === entryId);
+          if (currentEntry && data.startTime && data.endTime) {
+            const nextEntry = { ...currentEntry, ...data };
+            const conflicts = entries.filter(
+              (entry) =>
+                entry.date === currentEntry.date &&
+                !entry.isArchived &&
+                entry.id !== entryId &&
+                rangesOverlap(nextEntry, entry)
+            );
+            if (conflicts.length > 0) {
+              await Promise.all(conflicts.map((conflict) => deleteEntry(conflict.id)));
+            }
+          }
+          await updateEntry(entryId, data);
+          return true;
         }}
         onPhotoChange={() => fetchEntries(selectedDate)}
         todos={todos}
