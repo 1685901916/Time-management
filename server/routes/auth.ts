@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import db from '../database.js';
 import { hashPassword, comparePassword, signToken } from '../auth.js';
+import { authMiddleware } from '../middleware/authMiddleware.js';
 
 const router = Router();
 
@@ -75,7 +76,7 @@ router.post('/login', async (req: Request, res: Response) => {
 });
 
 // GET /api/auth/me
-router.get('/me', (req: Request, res: Response) => {
+router.get('/me', authMiddleware, (req: Request, res: Response) => {
   const userId = (req as any).user.userId;
   const user: any = db.prepare('SELECT id, username, display_name, avatar_url FROM users WHERE id = ?').get(userId);
 
