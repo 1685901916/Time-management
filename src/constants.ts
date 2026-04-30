@@ -86,10 +86,13 @@ export const QUADRANT_CONFIG: Record<QuadrantType, { color: string; icon: string
 };
 
 export const GOAL_COLOR_PRESETS = [
-  '#6DADD1', '#4FC3F7', '#5C7CFA', '#7C4DFF', '#9775FA', '#B197FC',
-  '#76C893', '#52B788', '#2ECA8B', '#94D82D', '#F9C74F', '#FFD166',
-  '#F4A261', '#FF922B', '#F77F00', '#E76F51', '#FF6B6B', '#E63946',
-  '#F08080', '#F783AC', '#D6336C', '#A8DADC', '#ADB5BD', '#495057',
+  '#6DADD1', '#4FC3F7', '#5C7CFA', '#7C4DFF', '#9775FA', '#B197FC', '#845EC2', '#3F37C9',
+  '#0EA5E9', '#0891B2', '#14B8A6', '#0D9488', '#22C55E', '#16A34A', '#76C893', '#52B788',
+  '#2ECA8B', '#10B981', '#84CC16', '#94D82D', '#A3E635', '#EAB308', '#F9C74F', '#FFD166',
+  '#FACC15', '#F59E0B', '#F4A261', '#FB923C', '#FF922B', '#F77F00', '#EA580C', '#E76F51',
+  '#FF6B6B', '#EF4444', '#E63946', '#F08080', '#F87171', '#FB7185', '#F783AC', '#EC4899',
+  '#D6336C', '#DB2777', '#C026D3', '#A21CAF', '#7E22CE', '#6D28D9', '#4338CA', '#1E40AF',
+  '#A8DADC', '#ADB5BD', '#94A3B8', '#64748B', '#475569', '#334155', '#1F2937', '#495057',
 ] as const;
 
 export const getLocalDateString = (d: Date = new Date()): string => {

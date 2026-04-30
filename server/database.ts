@@ -91,6 +91,14 @@ db.exec(`
     created_at  TEXT    DEFAULT (datetime('now')),
     updated_at  TEXT    DEFAULT (datetime('now'))
   );
+
+  CREATE TABLE IF NOT EXISTS active_timers (
+    user_id    INTEGER PRIMARY KEY REFERENCES users(id),
+    goal_data  TEXT    NOT NULL,
+    started_at INTEGER NOT NULL,
+    note       TEXT    DEFAULT '',
+    updated_at TEXT    DEFAULT (datetime('now'))
+  );
 `);
 
 const safeExec = (sql: string) => {

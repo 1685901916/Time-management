@@ -31,14 +31,14 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
                 key={tab.id}
                 onClick={() => onTabChange(tab.id)}
                 className={`relative flex h-12 cursor-pointer items-center gap-3 rounded-xl px-3 text-left text-sm font-semibold transition-colors duration-200 ${
-                  isActive ? 'text-teal-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                  isActive ? 'text-slate-950' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
                 }`}
                 aria-current={isActive ? 'page' : undefined}
               >
                 {isActive && (
                   <motion.div
                     layoutId="desktop-nav-indicator"
-                    className="absolute inset-0 -z-10 rounded-xl bg-teal-50"
+                    className="absolute inset-0 -z-10 rounded-xl bg-slate-100"
                     transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                   />
                 )}
@@ -70,14 +70,14 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
                 key={tab.id}
                 onClick={() => onTabChange(tab.id)}
                 className={`relative flex h-12 w-14 cursor-pointer flex-col items-center justify-center rounded-2xl transition-colors duration-300 ${
-                  isActive ? 'text-teal-700' : 'text-slate-400 hover:text-slate-600'
+                  isActive ? 'text-slate-950' : 'text-slate-400 hover:text-slate-600'
                 }`}
                 aria-current={isActive ? 'page' : undefined}
               >
                 {isActive && (
                   <motion.div
                     layoutId="mobile-nav-indicator"
-                    className="absolute inset-0 -z-10 rounded-2xl bg-teal-50"
+                    className="absolute inset-0 -z-10 rounded-2xl bg-slate-100"
                     transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                   />
                 )}

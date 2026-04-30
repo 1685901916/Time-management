@@ -1,9 +1,11 @@
-import { memo, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import { MoreVertical, Plus } from 'lucide-react';
 import type { QuadrantType, Todo } from '../../types';
 import { QUADRANT_CONFIG } from '../../constants';
 import MarkdownText from '../common/MarkdownText';
+import PageHeader from '../common/PageHeader';
+import QuadrantDetailView from './QuadrantDetailView';
 
 interface TodoViewProps {
   todos: Todo[];
@@ -19,58 +21,80 @@ interface TodoViewProps {
 
 const quadrants: QuadrantType[] = ['重要且紧急', '重要不紧急', '不重要但紧急', '不重要不紧急'];
 
+const PREVIEW_LIMIT = 6;
+
+function sortTodosForCard(todos: Todo[]) {
+  return [...todos].sort((a, b) => {
+    if (a.completed === b.completed) return 0;
+    return a.completed ? 1 : -1;
+  });
+}
+
 const QuadrantCard = memo(function QuadrantCard({
   quadrant,
   todos,
   onToggle,
   onEdit,
+  onOpenDetail,
 }: {
   quadrant: QuadrantType;
   todos: Todo[];
   onToggle: (id: string) => void;
   onEdit: (todo: Todo) => void;
+  onOpenDetail: (quadrant: QuadrantType) => void;
 }) {
   const config = QUADRANT_CONFIG[quadrant];
+  const ordered = useMemo(() => sortTodosForCard(todos), [todos]);
+  const visible = ordered.slice(0, PREVIEW_LIMIT);
+  const hasMore = ordered.length > PREVIEW_LIMIT;
 
   return (
     <div
-      className="flex min-h-[260px] flex-col overflow-hidden rounded-[22px] border bg-white shadow-[0_12px_34px_rgba(15,23,42,0.045)]"
+      className="flex h-full min-h-[260px] flex-col overflow-hidden rounded-[20px] border bg-white shadow-[0_12px_34px_rgba(15,23,42,0.045)]"
       style={{ borderColor: `${config.color}18` }}
     >
-      <div className="flex items-center gap-2 px-5 pb-3 pt-4">
+      <button
+        type="button"
+        onClick={() => onOpenDetail(quadrant)}
+        className="flex w-full items-center gap-2 px-3 pb-2 pt-3 text-left sm:px-5 sm:pb-3 sm:pt-4"
+      >
         <span
-          className="flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-extrabold"
+          className="flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-extrabold sm:h-8 sm:w-8 sm:text-[11px]"
           style={{ backgroundColor: `${config.color}12`, color: config.color }}
         >
           {config.icon}
         </span>
-        <div className="min-w-0">
-          <div className="text-[15px] font-extrabold leading-tight text-slate-800">{config.label}</div>
-          <div className="mt-0.5 text-[11px] font-medium text-slate-400">{todos.length ? `${todos.length} 个待办` : '空闲'}</div>
+        <div className="min-w-0 flex-1">
+          <div
+            className="truncate text-[13px] font-extrabold leading-tight sm:text-[15px]"
+            style={{ color: config.color }}
+          >
+            {config.label}
+          </div>
         </div>
-      </div>
+      </button>
 
-      <div className="flex flex-1 flex-col overflow-hidden px-5 pb-4">
-        {todos.length === 0 ? (
-          <div className="flex flex-1 items-center justify-center rounded-2xl border border-dashed border-slate-100 bg-slate-50/45 text-[13px] font-medium text-slate-300">
+      <div className="flex flex-1 flex-col overflow-hidden px-3 pb-3 sm:px-5 sm:pb-4">
+        {ordered.length === 0 ? (
+          <div className="flex flex-1 items-center justify-center rounded-2xl border border-dashed border-slate-100 bg-slate-50/45 text-[12px] font-medium text-slate-300 sm:text-[13px]">
             暂无待办
           </div>
         ) : (
-          <div className="flex-1 space-y-2.5 overflow-y-auto pr-1 scrollbar-hide">
-            {todos.map((todo) => (
+          <div className="flex-1 space-y-1.5 overflow-y-auto pr-0.5 scrollbar-hide sm:space-y-2">
+            {visible.map((todo) => (
               <div
                 key={todo.id}
-                className="group cursor-pointer rounded-2xl border border-transparent bg-slate-50/70 px-3 py-2.5 transition-colors hover:border-slate-100 hover:bg-white"
+                className="group cursor-pointer rounded-xl px-1.5 py-1 transition-colors hover:bg-slate-50 sm:rounded-2xl sm:px-2 sm:py-1.5"
                 onClick={() => onEdit(todo)}
               >
-                <div className="flex items-start gap-3">
+                <div className="flex items-start gap-2 sm:gap-3">
                   <motion.button
                     whileTap={{ scale: 0.86 }}
                     onClick={(event) => {
                       event.stopPropagation();
                       onToggle(todo.id);
                     }}
-                    className={`mt-0.5 flex h-[20px] w-[20px] flex-shrink-0 items-center justify-center rounded-[6px] border-[1.5px] transition-colors ${
+                    className={`mt-0.5 flex h-[18px] w-[18px] flex-shrink-0 items-center justify-center rounded-[5px] border-[1.5px] transition-colors sm:h-[20px] sm:w-[20px] sm:rounded-[6px] ${
                       todo.completed ? 'border-slate-200 bg-slate-200' : 'bg-white'
                     }`}
                     style={!todo.completed ? { borderColor: config.color } : {}}
@@ -79,19 +103,25 @@ const QuadrantCard = memo(function QuadrantCard({
                       <motion.div
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
-                        className="-mt-0.5 h-1.5 w-2.5 rotate-[-45deg] border-b-[2px] border-l-[2px] border-white"
+                        className="-mt-0.5 h-1.5 w-2 rotate-[-45deg] border-b-[2px] border-l-[2px] border-white sm:w-2.5"
                       />
                     )}
                   </motion.button>
 
                   <div className="min-w-0 flex-1">
-                    <span className={`block truncate text-[14px] font-semibold leading-snug ${todo.completed ? 'text-[#C7C7CC] line-through' : 'text-slate-800'}`}>
+                    <span
+                      className={`block truncate text-[12px] font-semibold leading-snug sm:text-[14px] ${
+                        todo.completed ? 'text-[#C7C7CC] line-through' : 'text-slate-800'
+                      }`}
+                    >
                       {todo.title}
                     </span>
                     {todo.note && (
                       <MarkdownText
                         text={todo.note}
-                        className={`mt-0.5 truncate text-[11px] ${todo.completed ? 'text-[#C7C7CC] line-through' : 'text-slate-400'}`}
+                        className={`mt-0.5 truncate text-[10px] sm:text-[11px] ${
+                          todo.completed ? 'text-[#C7C7CC] line-through' : 'text-slate-400'
+                        }`}
                       />
                     )}
                   </div>
@@ -101,9 +131,15 @@ const QuadrantCard = memo(function QuadrantCard({
           </div>
         )}
 
-        {todos.length > 4 && (
-          <div className="mt-2 shrink-0 text-center">
-            <button className="text-[12px] text-[#C7C7CC] transition-colors hover:text-gray-400">查看更多</button>
+        {hasMore && (
+          <div className="mt-1 shrink-0 text-center">
+            <button
+              type="button"
+              onClick={() => onOpenDetail(quadrant)}
+              className="text-[11px] text-slate-400 transition-colors hover:text-slate-600 sm:text-[12px]"
+            >
+              查看更多
+            </button>
           </div>
         )}
       </div>
@@ -114,13 +150,15 @@ const QuadrantCard = memo(function QuadrantCard({
 function QuickAddTodoModal({
   onClose,
   onAdd,
+  initialQuadrant = '重要且紧急',
 }: {
   onClose: () => void;
   onAdd: (title: string, quadrant: QuadrantType, note?: string) => void;
+  initialQuadrant?: QuadrantType;
 }) {
   const [newTodoTitle, setNewTodoTitle] = useState('');
   const [newTodoNote, setNewTodoNote] = useState('');
-  const [selectedQuadrant, setSelectedQuadrant] = useState<QuadrantType>('重要且紧急');
+  const [selectedQuadrant, setSelectedQuadrant] = useState<QuadrantType>(initialQuadrant);
   const [showQuadrantPicker, setShowQuadrantPicker] = useState(false);
 
   const handleQuickAdd = () => {
@@ -201,7 +239,7 @@ function QuickAddTodoModal({
             <button
               onClick={handleQuickAdd}
               disabled={!newTodoTitle.trim()}
-              className="rounded-full bg-teal-600 px-6 py-2 text-sm font-medium text-white transition-transform active:scale-95 disabled:opacity-40"
+              className="rounded-full bg-slate-900 px-6 py-2 text-sm font-medium text-white transition-transform active:scale-95 disabled:opacity-40"
             >
               添加
             </button>
@@ -212,41 +250,111 @@ function QuickAddTodoModal({
   );
 }
 
-export default function TodoView({ todos, onAdd, onToggle, onEdit, onMoreClick }: TodoViewProps) {
+export default function TodoView({ todos, onAdd, onToggle, onEdit }: TodoViewProps) {
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+  const [quickAddQuadrant, setQuickAddQuadrant] = useState<QuadrantType>('重要且紧急');
+  const [detailQuadrant, setDetailQuadrant] = useState<QuadrantType | null>(null);
   const filteredTodos = useMemo(() => todos.filter((todo) => !todo.isArchived), [todos]);
 
-  return (
-    <div className="min-h-screen bg-[#F7FBFA] pb-20 lg:h-screen lg:overflow-hidden lg:pb-0">
-      <header className="flex items-center justify-between px-5 pb-4 pt-6 lg:px-6 lg:pt-7">
-        <h1 className="text-[24px] font-extrabold tracking-wide text-[#1C1C1E]">四象限待办</h1>
-        <button onClick={onMoreClick} className="cursor-pointer p-1 text-gray-500">
-          <MoreVertical size={24} />
-        </button>
-      </header>
+  const todosByQuadrant = useMemo(() => {
+    const groups: Record<QuadrantType, Todo[]> = {
+      重要且紧急: [],
+      重要不紧急: [],
+      不重要但紧急: [],
+      不重要不紧急: [],
+    };
+    for (const todo of filteredTodos) {
+      groups[todo.quadrant].push(todo);
+    }
+    return groups;
+  }, [filteredTodos]);
 
-      <div className="grid grid-cols-1 gap-4 px-4 pb-6 sm:grid-cols-2 lg:h-[calc(100vh-104px)] lg:grid-rows-2 lg:px-6">
-        {quadrants.map((quadrant) => (
-          <QuadrantCard
-            key={quadrant}
-            quadrant={quadrant}
-            todos={filteredTodos.filter((todo) => todo.quadrant === quadrant)}
-            onToggle={onToggle}
-            onEdit={onEdit}
-          />
-        ))}
-      </div>
+  const openDetail = (quadrant: QuadrantType) => {
+    setDetailQuadrant(quadrant);
+  };
+
+  const openQuickAdd = (quadrant?: QuadrantType) => {
+    if (quadrant) setQuickAddQuadrant(quadrant);
+    setIsQuickAddOpen(true);
+  };
+
+  useEffect(() => {
+    if (detailQuadrant) {
+      const previous = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = previous;
+      };
+    }
+  }, [detailQuadrant]);
+
+  return (
+    <div className="flex min-h-[100dvh] flex-col bg-[#F6F8FB] pb-24 lg:pb-12">
+      <PageHeader
+        title="四象限待办"
+        actions={
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => openQuickAdd()}
+              className="hidden h-11 cursor-pointer items-center gap-1.5 rounded-2xl bg-slate-900 px-4 text-sm font-extrabold text-white shadow-[0_12px_32px_-22px_rgba(15,23,42,0.6)] transition-colors hover:bg-slate-800 sm:flex"
+            >
+              <Plus size={16} />
+              新建待办
+            </button>
+            <button
+              type="button"
+              className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-slate-500 hover:bg-white/60 sm:hidden"
+              aria-label="更多"
+            >
+              <MoreVertical size={20} />
+            </button>
+          </div>
+        }
+      />
+
+      <main className="mx-auto flex w-full max-w-[1280px] flex-1 flex-col px-3 py-3 sm:px-5 sm:py-4 lg:px-8 lg:py-5">
+        <div className="grid flex-1 grid-cols-2 grid-rows-2 gap-2.5 sm:gap-4">
+          {quadrants.map((quadrant) => (
+            <QuadrantCard
+              key={quadrant}
+              quadrant={quadrant}
+              todos={todosByQuadrant[quadrant]}
+              onToggle={onToggle}
+              onEdit={onEdit}
+              onOpenDetail={openDetail}
+            />
+          ))}
+        </div>
+      </main>
 
       <motion.button
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
-        className="fixed bottom-24 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-teal-600 text-white shadow-float lg:bottom-8 lg:right-8"
-        onClick={() => setIsQuickAddOpen(true)}
+        className="fixed bottom-24 right-6 z-40 flex h-14 w-14 cursor-pointer items-center justify-center rounded-full bg-blue-500 text-white shadow-[0_18px_36px_-12px_rgba(59,130,246,0.6)] sm:hidden"
+        onClick={() => openQuickAdd()}
+        aria-label="新建待办"
       >
-        <Plus size={32} strokeWidth={2} />
+        <Plus size={26} strokeWidth={2.4} />
       </motion.button>
 
-      {isQuickAddOpen && <QuickAddTodoModal onClose={() => setIsQuickAddOpen(false)} onAdd={onAdd} />}
+      {detailQuadrant && (
+        <QuadrantDetailView
+          quadrant={detailQuadrant}
+          todos={todosByQuadrant[detailQuadrant]}
+          onClose={() => setDetailQuadrant(null)}
+          onToggle={onToggle}
+          onEdit={onEdit}
+          onAdd={() => openQuickAdd(detailQuadrant)}
+        />
+      )}
+
+      {isQuickAddOpen && (
+        <QuickAddTodoModal
+          onClose={() => setIsQuickAddOpen(false)}
+          onAdd={onAdd}
+          initialQuadrant={quickAddQuadrant}
+        />
+      )}
     </div>
   );
 }

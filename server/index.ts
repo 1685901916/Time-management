@@ -11,6 +11,7 @@ import goalRoutes from './routes/goals.js';
 import todoRoutes from './routes/todos.js';
 import uploadRoutes from './routes/upload.js';
 import aiProxyRoutes from './routes/aiProxy.js';
+import timerRoutes from './routes/timers.js';
 import dailyReviewRoutes from './routes/dailyReviews.js';
 
 dotenv.config();
@@ -31,6 +32,7 @@ app.use('/api/todos', authMiddleware, todoRoutes);
 app.use('/api/entries', authMiddleware, uploadRoutes);
 app.use('/api/ai', authMiddleware, aiProxyRoutes);
 app.use('/api/daily-reviews', authMiddleware, dailyReviewRoutes);
+app.use('/api/timers', timerRoutes);
 
 app.get('/api/stats', authMiddleware, (req, res) => {
   const userId = (req as any).user.userId;

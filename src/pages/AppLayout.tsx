@@ -51,7 +51,16 @@ export default function AppLayout({ user, onLogout }: AppLayoutProps) {
   const [selectedDate, setSelectedDate] = useState(getLocalDateString());
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [showBottomButtons, setShowBottomButtons] = useState(true);
+  const [showBottomButtons, setShowBottomButtons] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    const stored = window.localStorage.getItem('itime.showBottomButtons');
+    return stored === null ? true : stored === '1';
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem('itime.showBottomButtons', showBottomButtons ? '1' : '0');
+  }, [showBottomButtons]);
   const [editingEntry, setEditingEntry] = useState<Partial<TimeEntry> | null>(null);
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
   const [isAddingGoal, setIsAddingGoal] = useState(false);
@@ -101,6 +110,15 @@ export default function AppLayout({ user, onLogout }: AppLayoutProps) {
       );
 
       if (conflicts.length > 0) {
+        const description = conflicts
+          .map((conflict) => `${conflict.startTime}-${conflict.endTime} ${conflict.category}`)
+          .join('、');
+        const confirmed = window.confirm(
+          `本次保存会覆盖以下重叠记录：\n${description}\n\n确认继续？`
+        );
+        if (!confirmed) {
+          return;
+        }
         await Promise.all(conflicts.map((conflict) => deleteEntry(conflict.id)));
       }
 
@@ -131,12 +149,12 @@ export default function AppLayout({ user, onLogout }: AppLayoutProps) {
   );
 
   const handleStartTimer = useCallback(
-    (goal: Goal) => {
+    async (goal: Goal) => {
       if (activeTimer) {
         setIsTimerOverlayVisible(true);
         return;
       }
-      startTimer(goal);
+      await startTimer(goal);
       setIsTimerOverlayVisible(true);
       setSelectedDate(getLocalDateString());
     },
@@ -160,12 +178,12 @@ export default function AppLayout({ user, onLogout }: AppLayoutProps) {
       startTime: startStr,
       endTime: endStr,
       category: activeTimer.goal.category,
-      note: timerNote.trim() || activeTimer.goal.title,
+      note: timerNote.trim(),
       durationMinutes,
       linkedGoalId: activeTimer.goal.id,
     });
 
-    clearTimer();
+    await clearTimer();
     setIsTimerOverlayVisible(false);
     setSelectedDate(getLocalDateString());
   }, [activeTimer, getElapsedMinutes, createEntry, timerNote, clearTimer]);
@@ -180,7 +198,7 @@ export default function AppLayout({ user, onLogout }: AppLayoutProps) {
       });
       setIsAddingGoal(false);
       if (created && !activeTimer) {
-        startTimer(created);
+        await startTimer(created);
         setIsTimerOverlayVisible(true);
         setSelectedDate(getLocalDateString());
       }
@@ -265,6 +283,7 @@ export default function AppLayout({ user, onLogout }: AppLayoutProps) {
             onDateClick={() => setIsDatePickerOpen(true)}
             onEdit={setEditingEntry}
             onAddEntry={setEditingEntry}
+            onEditTime={setEditingEntry}
             onMoreClick={() => setIsMenuOpen(true)}
             onTimerClick={() => setIsTimerOverlayVisible(true)}
             onQuickNote={handleQuickNote}
@@ -344,7 +363,12 @@ export default function AppLayout({ user, onLogout }: AppLayoutProps) {
       />
 
       {editingEntry && (
-        <EditView entry={editingEntry} onSave={handleSaveEntry} onCancel={() => setEditingEntry(null)} onDelete={handleDeleteEntry} />
+        <EditView
+          entry={editingEntry}
+          onSave={handleSaveEntry}
+          onCancel={() => setEditingEntry(null)}
+          onDelete={handleDeleteEntry}
+        />
       )}
       {editingTodo && (
         <TodoEditView todo={editingTodo} onSave={handleSaveTodo} onCancel={() => setEditingTodo(null)} onDelete={handleDeleteTodo} />
@@ -377,6 +401,15 @@ export default function AppLayout({ user, onLogout }: AppLayoutProps) {
                 rangesOverlap(nextEntry, entry)
             );
             if (conflicts.length > 0) {
+              const description = conflicts
+                .map((conflict) => `${conflict.startTime}-${conflict.endTime} ${conflict.category}`)
+                .join('、');
+              const confirmed = window.confirm(
+                `本次调整会覆盖以下重叠记录：\n${description}\n\n确认继续？`
+              );
+              if (!confirmed) {
+                return false;
+              }
               await Promise.all(conflicts.map((conflict) => deleteEntry(conflict.id)));
             }
           }

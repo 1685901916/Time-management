@@ -1,8 +1,8 @@
 import { useMemo, useRef, useState } from 'react';
 import type { CSSProperties, DragEvent } from 'react';
 import { motion, Reorder, useDragControls } from 'motion/react';
-import { Check, GripVertical, Layers3, Play, Plus, Sparkles, Target, Trash2, X } from 'lucide-react';
-import Header from '../common/Header';
+import { Check, GripVertical, Layers3, Play, Plus, Target, Trash2, X } from 'lucide-react';
+import PageHeader from '../common/PageHeader';
 import type { CategoryType, Goal } from '../../types';
 import { CATEGORY_COLORS, GOAL_COLOR_PRESETS, normalizeCategory } from '../../constants';
 
@@ -29,7 +29,7 @@ const APP_COLORS = {
   accentHover: '#115E59',
 };
 
-const goalDisplayColor = (goal: Goal) => CATEGORY_COLORS[normalizeCategory(goal.category)] || goal.color || APP_COLORS.accent;
+const goalDisplayColor = (goal: Goal) => goal.color || CATEGORY_COLORS[normalizeCategory(goal.category)] || APP_COLORS.accent;
 
 function SortableGoalCard({
   goal,
@@ -100,7 +100,6 @@ function SortableGoalCard({
             <span className="truncate">{category}</span>
           </div>
           <h3 className="truncate text-lg font-bold leading-tight lg:text-xl">{goal.title}</h3>
-          {goal.subtitle && <p className="mt-1 truncate text-sm leading-5 text-white/80">{goal.subtitle}</p>}
         </button>
       </div>
 
@@ -156,7 +155,6 @@ function DesktopGoalCard({
 
         <button type="button" onClick={() => onOpenEdit(goal)} className="min-w-0 flex-1 cursor-pointer text-left">
           <h3 className="line-clamp-1 text-2xl font-bold leading-tight">{goal.title}</h3>
-          <p className="mt-2 line-clamp-1 text-sm font-medium leading-5 text-white/86">{goal.subtitle || category}</p>
         </button>
       </div>
 
@@ -230,60 +228,36 @@ export default function GoalsView({ goals, onStart, onAdd, onDelete, onUpdate, o
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-24 lg:pb-10">
-      <div className="lg:hidden">
-        <Header
-          title="目标"
-          leftIcon={<Sparkles size={22} />}
-          onMoreClick={onMoreClick}
-          rightIcons={
-            <button onClick={onAdd} className="cursor-pointer" aria-label="添加目标">
-              <Plus size={24} />
-            </button>
-          }
-        />
-      </div>
+    <div className="min-h-screen bg-[#F6F8FB] pb-24 lg:pb-12">
+      <PageHeader
+        title="目标空间"
+        accent="teal"
+        actions={
+          <button
+            onClick={onAdd}
+            className="flex h-11 cursor-pointer items-center gap-1.5 rounded-2xl bg-slate-900 px-4 text-sm font-extrabold text-white shadow-[0_12px_32px_-22px_rgba(15,23,42,0.6)] transition-colors hover:bg-slate-800"
+          >
+            <Plus size={16} />
+            新建目标
+          </button>
+        }
+      />
 
-      <main className="mx-auto w-full max-w-[1500px] px-4 py-4 sm:px-6 lg:px-10 lg:py-8">
-        <div className="mb-6 hidden items-center justify-between lg:flex">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-teal-100 bg-white px-3 py-1 text-sm font-medium text-teal-700">
-              <Sparkles size={15} />
-              目标管理
-            </div>
-            <h1 className="mt-3 text-3xl font-bold text-slate-950">目标空间</h1>
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={onMoreClick}
-              className="cursor-pointer rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
-            >
-              更多
-            </button>
-            <button
-              onClick={onAdd}
-              className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-[filter,transform] hover:brightness-95 active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-2"
-            >
-              <Plus size={18} />
-              新建目标
-            </button>
-          </div>
-        </div>
-
+      <main className="mx-auto w-full max-w-[1280px] px-4 py-5 sm:px-5 lg:px-8 lg:py-7">
         <section className="grid gap-5 lg:grid-cols-[300px_minmax(0,1fr)] lg:gap-6">
           <aside className="hidden space-y-4 lg:block">
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+            <div className="minimal-card p-5">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold text-slate-500">目标总数</span>
-                <Target size={18} className="text-teal-600" />
+                <span className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">目标总数</span>
+                <Target size={18} style={{ color: 'var(--color-accent-mint-ink)' }} />
               </div>
-              <div className="mt-3 text-4xl font-bold text-slate-950">{goals.length}</div>
-              <p className="mt-2 text-sm leading-6 text-slate-500">桌面拖动卡片换位，手机长按手柄排序。</p>
+              <div className="mt-3 text-4xl font-extrabold text-slate-950">{goals.length}</div>
+              <p className="mt-2 text-sm font-bold leading-6 text-slate-500">桌面拖动卡片换位，手机长按手柄排序。</p>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
-              <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-700">
-                <Layers3 size={17} className="text-teal-600" />
+            <div className="minimal-card p-5">
+              <div className="mb-4 flex items-center gap-2 text-sm font-extrabold text-slate-700">
+                <Layers3 size={17} style={{ color: 'var(--color-accent-mint-ink)' }} />
                 分类分布
               </div>
               <div className="space-y-3">
@@ -291,31 +265,30 @@ export default function GoalsView({ goals, onStart, onAdd, onDelete, onUpdate, o
                   categorySummaries.map((item) => (
                     <div key={item.category} className="flex items-center gap-3">
                       <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
-                      <span className="min-w-0 flex-1 truncate text-sm text-slate-600">{item.category}</span>
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">{item.count}</span>
+                      <span className="min-w-0 flex-1 truncate text-sm font-bold text-slate-700">{item.category}</span>
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-extrabold text-slate-600">{item.count}</span>
                     </div>
                   ))
                 ) : (
-                  <p className="text-sm text-slate-500">还没有目标，先创建一个常用目标。</p>
+                  <p className="text-sm font-bold text-slate-400">还没有目标，先创建一个常用目标。</p>
                 )}
               </div>
             </div>
-
           </aside>
 
           <div>
-            <div className="mb-3 flex items-center justify-between lg:hidden">
-              <div>
-                <p className="text-sm text-slate-500">目标总数</p>
-                <p className="text-2xl font-bold text-slate-900">{goals.length}</p>
+            <div className="mb-3 grid grid-cols-2 gap-3 lg:hidden">
+              <div className="minimal-card p-4">
+                <p className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">目标总数</p>
+                <p className="mt-1 text-2xl font-extrabold text-slate-950">{goals.length}</p>
               </div>
-              <button
-                onClick={onAdd}
-                className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-teal-600 px-4 py-2 text-sm font-semibold text-white shadow-sm"
-              >
-                <Plus size={18} />
-                新建
-              </button>
+              <div className="minimal-card flex items-center gap-2 p-4">
+                <Layers3 size={18} style={{ color: 'var(--color-accent-mint-ink)' }} />
+                <div>
+                  <p className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">分类</p>
+                  <p className="mt-1 text-sm font-extrabold text-slate-950">{categorySummaries.length} 类</p>
+                </div>
+              </div>
             </div>
 
             <Reorder.Group
