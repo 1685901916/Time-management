@@ -13,12 +13,12 @@ import TimerOverlay from '../components/timer/TimerOverlay';
 import TodoEditView from '../components/todo/TodoEditView';
 import TodoView from '../components/todo/TodoView';
 import { getStats } from '../api/entries';
-import { getLocalDateString } from '../constants';
+import { EDITABLE_CATEGORY_VALUES, getLocalDateString, normalizeCategory } from '../constants';
 import { useEntries } from '../hooks/useEntries';
 import { useGoals } from '../hooks/useGoals';
 import { useTimer } from '../hooks/useTimer';
 import { useTodos } from '../hooks/useTodos';
-import type { Goal, Stats, TimeEntry, Todo } from '../types';
+import type { CategoryType, Goal, Stats, TimeEntry, Todo } from '../types';
 
 interface AppLayoutProps {
   user: any;
@@ -75,6 +75,17 @@ export default function AppLayout({ user, onLogout }: AppLayoutProps) {
 
   const todayStr = getLocalDateString();
   const isToday = selectedDate === todayStr;
+  const categoryOptions = useMemo(() => {
+    const options = new Set<CategoryType>();
+    EDITABLE_CATEGORY_VALUES.forEach((category) => {
+      if (category !== '未记录') options.add(category);
+    });
+    goals.forEach((goal) => {
+      const category = normalizeCategory(goal.category);
+      if (category !== '未记录') options.add(category);
+    });
+    return Array.from(options);
+  }, [goals]);
   const filteredEntries = useMemo(
     () => entries.filter((entry) => entry.date === selectedDate && !entry.isArchived),
     [entries, selectedDate]
@@ -148,6 +159,41 @@ export default function AppLayout({ user, onLogout }: AppLayoutProps) {
     [deleteEntry]
   );
 
+  const handleMergeEntry = useCallback(
+    async (entry: TimeEntry) => {
+      if (!entry.id) return;
+
+      const sameDayEntries = entries
+        .filter((currentEntry) => currentEntry.date === entry.date && !currentEntry.isArchived)
+        .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
+
+      const currentIndex = sameDayEntries.findIndex((currentEntry) => currentEntry.id === entry.id);
+      if (currentIndex <= 0) {
+        window.alert('没有可合并的上一条记录');
+        return;
+      }
+
+      const previous = sameDayEntries[currentIndex - 1];
+      const confirmed = window.confirm(
+        `确定将 ${previous.startTime}-${previous.endTime} 与 ${entry.startTime}-${entry.endTime} 向上合并吗？`
+      );
+      if (!confirmed) return;
+
+      const mergedNote = [previous.note?.trim(), entry.note?.trim()].filter(Boolean).join('\n\n');
+      await updateEntry(previous.id, {
+        startTime: previous.startTime,
+        endTime: entry.endTime,
+        category: previous.category,
+        note: mergedNote || undefined,
+        linkedTodoId: previous.linkedTodoId || entry.linkedTodoId,
+        linkedGoalId: previous.linkedGoalId || entry.linkedGoalId,
+      });
+      await deleteEntry(entry.id);
+      setEditingEntry(null);
+    },
+    [entries, updateEntry, deleteEntry]
+  );
+
   const handleStartTimer = useCallback(
     async (goal: Goal) => {
       if (activeTimer) {
@@ -187,6 +233,12 @@ export default function AppLayout({ user, onLogout }: AppLayoutProps) {
     setIsTimerOverlayVisible(false);
     setSelectedDate(getLocalDateString());
   }, [activeTimer, getElapsedMinutes, createEntry, timerNote, clearTimer]);
+
+  const handleDiscardTimer = useCallback(async () => {
+    if (!window.confirm('确定取消这次计时吗？当前进度会被清除。')) return;
+    await clearTimer();
+    setIsTimerOverlayVisible(false);
+  }, [clearTimer]);
 
   const handleAddGoal = useCallback(
     async (goal: Goal) => {
@@ -315,6 +367,7 @@ export default function AppLayout({ user, onLogout }: AppLayoutProps) {
             onDelete={handleDeleteGoal}
             onReorder={handleReorderGoals}
             onMoreClick={() => setIsMenuOpen(true)}
+            categoryOptions={categoryOptions}
           />
         );
       case 'analysis':
@@ -325,6 +378,7 @@ export default function AppLayout({ user, onLogout }: AppLayoutProps) {
             onDateChange={setSelectedDate}
             onDateClick={() => setIsDatePickerOpen(true)}
             onMoreClick={() => setIsMenuOpen(true)}
+            categoryOptions={categoryOptions}
           />
         );
       case 'me':
@@ -352,6 +406,7 @@ export default function AppLayout({ user, onLogout }: AppLayoutProps) {
           onNoteChange={setTimerNote}
           onFinish={handleFinishTimer}
           onCancel={() => setIsTimerOverlayVisible(false)}
+          onDiscard={handleDiscardTimer}
         />
       )}
 
@@ -368,6 +423,8 @@ export default function AppLayout({ user, onLogout }: AppLayoutProps) {
           onSave={handleSaveEntry}
           onCancel={() => setEditingEntry(null)}
           onDelete={handleDeleteEntry}
+          onMergePrevious={handleMergeEntry}
+          categoryOptions={categoryOptions}
         />
       )}
       {editingTodo && (
@@ -419,6 +476,7 @@ export default function AppLayout({ user, onLogout }: AppLayoutProps) {
         onPhotoChange={() => fetchEntries(selectedDate)}
         todos={todos}
         goals={goals}
+        categoryOptions={categoryOptions}
       />
     </div>
   );

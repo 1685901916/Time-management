@@ -3,11 +3,11 @@ export const CATEGORY_VALUES = [
   '睡觉',
   '刷手机',
   '游戏',
-  '信息工作',
+  '工作',
+  '信息',
   '户外',
   '写笔记',
   '休息',
-  '琐事',
   '运动',
   '未记录',
 ] as const;
@@ -29,12 +29,13 @@ const LEGACY_CATEGORY_ALIASES: Record<string, CategoryType> = {
   '鍒锋墜鏈�': '刷手机',
   '鍒锋墜鏈?': '刷手机',
   '娓告垙': '游戏',
-  '淇℃伅宸ヤ綔': '信息工作',
+  '淇℃伅宸ヤ綔': '工作',
+  '信息工作': '工作',
   '鎴峰': '户外',
   '鍐欑瑪璁�': '写笔记',
   '鍐欑瑪璁?': '写笔记',
   '浼戞伅': '休息',
-  '鐞愪簨': '琐事',
+  '鐞愪簨': '未记录',
   '杩愬姩': '运动',
   '�˶�': '运动',
   '鏈褰�': '未记录',
@@ -69,14 +70,16 @@ export const CATEGORY_COLORS: Record<CategoryType, string> = {
   睡觉: '#6DADD1',
   刷手机: '#76C893',
   游戏: '#E63946',
-  信息工作: '#F4A261',
+  工作: '#F4A261',
+  信息: '#5C7CFA',
   户外: '#F77F00',
   写笔记: '#E76F51',
   休息: '#A8DADC',
-  琐事: '#DDE5ED',
   运动: '#F08080',
   未记录: '#E5E7EB',
 };
+
+export const EDITABLE_CATEGORY_VALUES = CATEGORY_VALUES.filter((category) => category !== '未记录') as CategoryType[];
 
 export const QUADRANT_CONFIG: Record<QuadrantType, { color: string; icon: string; label: string; bg: string }> = {
   重要且紧急: { color: '#EF4444', icon: 'I', label: '重要且紧急', bg: '#FEF2F2' },

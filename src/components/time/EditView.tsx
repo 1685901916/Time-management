@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ChevronLeft, Plus, Trash2, X } from 'lucide-react';
 import type { TimeEntry, CategoryType } from '../../types';
-import { CATEGORY_COLORS } from '../../constants';
+import { CATEGORY_COLORS, EDITABLE_CATEGORY_VALUES, normalizeCategory } from '../../constants';
 import TimeRangeWheelPicker from '../common/TimeRangeWheelPicker';
 
 interface EditViewProps {
@@ -9,6 +9,8 @@ interface EditViewProps {
   onSave: (entry: TimeEntry) => void;
   onCancel: () => void;
   onDelete?: (id: string) => void;
+  onMergePrevious?: (entry: TimeEntry) => void | Promise<void>;
+  categoryOptions: CategoryType[];
   openPickerOnMount?: boolean;
 }
 
@@ -23,7 +25,7 @@ function nowHHmm() {
   return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 }
 
-export default function EditView({ entry, onSave, onCancel, onDelete }: EditViewProps) {
+export default function EditView({ entry, onSave, onCancel, onDelete, onMergePrevious, categoryOptions }: EditViewProps) {
   const initialDefaults = useMemo(() => {
     const current = nowHHmm();
     return {
@@ -32,12 +34,17 @@ export default function EditView({ entry, onSave, onCancel, onDelete }: EditView
     };
   }, [entry.startTime, entry.endTime]);
 
-  const [category, setCategory] = useState<CategoryType>(entry.category || '学习');
+  const [category, setCategory] = useState<CategoryType>(
+    (() => {
+      const normalized = normalizeCategory(entry.category);
+      if (categoryOptions.includes(normalized)) return normalized;
+      return categoryOptions[0] || EDITABLE_CATEGORY_VALUES[0];
+    })()
+  );
   const [startTime, setStartTime] = useState(initialDefaults.start);
   const [endTime, setEndTime] = useState(initialDefaults.end);
   const [note, setNote] = useState(entry.note || '');
 
-  const categories: CategoryType[] = ['睡觉', '学习', '运动', '刷手机', '休息', '信息工作', '户外', '写笔记', '游戏', '琐事'];
   const calculateDuration = (start: string, end: string) => {
     const [h1, m1] = start.split(':').map(Number);
     const [h2, m2] = end.split(':').map(Number);
@@ -95,12 +102,21 @@ export default function EditView({ entry, onSave, onCancel, onDelete }: EditView
                 <span className="rounded-lg bg-slate-900 px-3 py-1 text-sm font-bold text-white">分类</span>
                 <span className="rounded-lg border border-slate-200 px-3 py-1 text-sm text-slate-500">重要</span>
                 <div className="flex-1" />
-                <button className="flex cursor-pointer items-center gap-1 text-sm font-bold text-slate-700">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (entry.id && onMergePrevious) {
+                      onMergePrevious({ ...entry, category, startTime, endTime, note, durationMinutes: duration } as TimeEntry);
+                    }
+                  }}
+                  disabled={!entry.id || !onMergePrevious}
+                  className="flex cursor-pointer items-center gap-1 text-sm font-bold text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+                >
                   <Plus size={14} /> 向上合并
                 </button>
               </div>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-                {categories.map((cat) => (
+                {categoryOptions.map((cat) => (
                   <button
                     key={cat}
                     onClick={() => setCategory(cat)}

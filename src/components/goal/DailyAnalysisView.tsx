@@ -36,6 +36,7 @@ interface DailyAnalysisViewProps {
   onDateChange: (date: string) => void;
   onDateClick: () => void;
   onMoreClick: () => void;
+  categoryOptions: CategoryType[];
 }
 
 interface AnalysisResult {
@@ -409,6 +410,7 @@ export default function DailyAnalysisView({
   selectedDate,
   onDateChange,
   onDateClick,
+  categoryOptions,
 }: DailyAnalysisViewProps) {
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
@@ -508,9 +510,7 @@ export default function DailyAnalysisView({
 
     const options: (CategoryType | 'all')[] = [
       'all',
-      ...Array.from(totals.entries())
-        .sort((a, b) => b[1] - a[1])
-        .map(([category]) => category),
+      ...categoryOptions.filter((category) => totals.has(category)).sort((a, b) => (totals.get(b) || 0) - (totals.get(a) || 0)),
     ];
 
     if (trendCategory !== 'all' && !options.includes(trendCategory)) {

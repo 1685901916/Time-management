@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { X, Square, Timer, NotebookPen } from 'lucide-react';
+import { Trash2, X, Square, Timer, NotebookPen } from 'lucide-react';
 import { memo } from 'react';
 import type { Goal } from '../../types';
 import { CATEGORY_COLORS, normalizeCategory } from '../../constants';
@@ -11,6 +11,7 @@ interface TimerOverlayProps {
   onNoteChange: (note: string) => void;
   onFinish: () => void;
   onCancel: () => void;
+  onDiscard: () => void;
 }
 
 const NoteEditor = memo(function NoteEditor({
@@ -38,6 +39,7 @@ export default function TimerOverlay({
   onNoteChange,
   onFinish,
   onCancel,
+  onDiscard,
 }: TimerOverlayProps) {
   const category = normalizeCategory(timer.goal.category);
   const color = CATEGORY_COLORS[category];
@@ -115,7 +117,14 @@ export default function TimerOverlay({
             onClick={onCancel}
             className="flex-1 cursor-pointer rounded-xl border border-slate-200 py-3 font-semibold text-slate-500 transition-colors hover:bg-slate-50"
           >
-            取消
+            关闭
+          </button>
+          <button
+            onClick={onDiscard}
+            className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border border-red-100 bg-red-50 py-3 font-bold text-red-600 transition-colors hover:bg-red-100"
+          >
+            <Trash2 size={14} />
+            取消计时
           </button>
           <button
             onClick={onFinish}

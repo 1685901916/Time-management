@@ -2,19 +2,17 @@ import { useState } from 'react';
 import { motion } from 'motion/react';
 import { Check, X } from 'lucide-react';
 import type { CategoryType, Goal } from '../../types';
-import { CATEGORY_COLORS, GOAL_COLOR_PRESETS } from '../../constants';
+import { CATEGORY_COLORS, EDITABLE_CATEGORY_VALUES, GOAL_COLOR_PRESETS } from '../../constants';
 
 interface AddGoalViewProps {
   onSave: (goal: Goal) => void;
   onCancel: () => void;
 }
 
-const categories = Object.keys(CATEGORY_COLORS) as CategoryType[];
-
 export default function AddGoalView({ onSave, onCancel }: AddGoalViewProps) {
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState<CategoryType>(categories[0]);
-  const [color, setColor] = useState(CATEGORY_COLORS[categories[0]]);
+  const [category, setCategory] = useState<CategoryType>(EDITABLE_CATEGORY_VALUES[0]);
+  const [color, setColor] = useState(CATEGORY_COLORS[EDITABLE_CATEGORY_VALUES[0]]);
 
   const handleSave = () => {
     if (!title.trim()) return;
@@ -58,7 +56,7 @@ export default function AddGoalView({ onSave, onCancel }: AddGoalViewProps) {
           <div>
             <p className="text-xs text-gray-400 mb-3">分类</p>
             <div className="flex flex-wrap gap-2">
-              {categories.map((cat) => (
+              {EDITABLE_CATEGORY_VALUES.map((cat) => (
                 <button
                   key={cat}
                   onClick={() => {

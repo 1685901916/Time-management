@@ -222,6 +222,17 @@ export default function TimeRangeWheelPicker({
         )}
       </div>
 
+      <div className="mb-4 grid grid-cols-2 gap-3">
+        <div className="rounded-2xl bg-slate-50 px-4 py-3 shadow-[inset_0_0_0_1px_rgba(226,232,240,0.9)]">
+          <div className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-400">开始</div>
+          <div className="mt-1 font-mono text-[26px] font-extrabold tracking-wide text-slate-900">{startTime}</div>
+        </div>
+        <div className="rounded-2xl bg-slate-50 px-4 py-3 shadow-[inset_0_0_0_1px_rgba(226,232,240,0.9)]">
+          <div className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-400">结束</div>
+          <div className="mt-1 font-mono text-[26px] font-extrabold tracking-wide text-slate-900">{endTime}</div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-2 gap-4">
         <div className="rounded-2xl bg-slate-50 px-2 py-3">
           <div className="mb-2 text-center text-[12px] font-extrabold text-slate-500">开始时间</div>

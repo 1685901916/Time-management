@@ -4,7 +4,7 @@ import { motion, Reorder, useDragControls } from 'motion/react';
 import { Check, GripVertical, Layers3, Play, Plus, Target, Trash2, X } from 'lucide-react';
 import PageHeader from '../common/PageHeader';
 import type { CategoryType, Goal } from '../../types';
-import { CATEGORY_COLORS, GOAL_COLOR_PRESETS, normalizeCategory } from '../../constants';
+import { CATEGORY_COLORS, EDITABLE_CATEGORY_VALUES, GOAL_COLOR_PRESETS, normalizeCategory } from '../../constants';
 
 interface GoalsViewProps {
   goals: Goal[];
@@ -14,10 +14,10 @@ interface GoalsViewProps {
   onUpdate: (id: string, data: { title?: string; subtitle?: string; category?: string; color?: string; sortOrder?: number }) => void;
   onReorder: (goalIds: string[]) => void;
   onMoreClick: () => void;
+  categoryOptions: CategoryType[];
 }
 
 const LONG_PRESS_MS = 260;
-const categories = Object.keys(CATEGORY_COLORS).filter((item) => item !== '未记录') as CategoryType[];
 
 const APP_COLORS = {
   page: '#F8FAFC',
@@ -166,11 +166,11 @@ function DesktopGoalCard({
   );
 }
 
-export default function GoalsView({ goals, onStart, onAdd, onDelete, onUpdate, onReorder, onMoreClick }: GoalsViewProps) {
+export default function GoalsView({ goals, onStart, onAdd, onDelete, onUpdate, onReorder, onMoreClick, categoryOptions }: GoalsViewProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
-  const [editCategory, setEditCategory] = useState<CategoryType>(categories[0]);
-  const [editColor, setEditColor] = useState(CATEGORY_COLORS[categories[0]]);
+  const [editCategory, setEditCategory] = useState<CategoryType>(categoryOptions[0] || EDITABLE_CATEGORY_VALUES[0]);
+  const [editColor, setEditColor] = useState(CATEGORY_COLORS[categoryOptions[0] || EDITABLE_CATEGORY_VALUES[0]]);
   const [orderedGoals, setOrderedGoals] = useState<Goal[]>([]);
   const [draggingGoalId, setDraggingGoalId] = useState<string | null>(null);
 
@@ -182,7 +182,7 @@ export default function GoalsView({ goals, onStart, onAdd, onDelete, onUpdate, o
   const visibleGoals = orderedGoals.length === sortedGoals.length ? orderedGoals : sortedGoals;
   const categorySummaries = useMemo(
     () =>
-      categories
+      categoryOptions
         .map((category) => ({
           category,
           count: goals.filter((goal) => normalizeCategory(goal.category) === category).length,
@@ -208,7 +208,9 @@ export default function GoalsView({ goals, onStart, onAdd, onDelete, onUpdate, o
     setEditingId(goal.id);
     setEditTitle(goal.title);
     setEditCategory(normalizeCategory(goal.category));
-    setEditColor(goal.color || CATEGORY_COLORS[normalizeCategory(goal.category)]);
+    const nextCategory = normalizeCategory(goal.category);
+    setEditCategory(categoryOptions.includes(nextCategory) ? nextCategory : categoryOptions[0] || EDITABLE_CATEGORY_VALUES[0]);
+    setEditColor(goal.color || CATEGORY_COLORS[nextCategory] || CATEGORY_COLORS[categoryOptions[0] || EDITABLE_CATEGORY_VALUES[0]]);
   };
 
   const handleSaveEdit = () => {
@@ -374,7 +376,7 @@ export default function GoalsView({ goals, onStart, onAdd, onDelete, onUpdate, o
               <div>
                 <p className="mb-3 text-xs font-semibold text-slate-500">分类</p>
                 <div className="flex flex-wrap gap-2">
-                  {categories.map((category) => (
+                  {categoryOptions.map((category) => (
                     <button
                       key={category}
                       onClick={() => setEditCategory(category)}

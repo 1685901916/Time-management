@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { X, Camera, ImagePlus, Save, Pencil, Maximize2, Minimize2, Bold, Italic, List, ListOrdered, Hash, Link2, CheckSquare, Target, ChevronDown } from 'lucide-react';
 import type { TimeEntry, Todo, Goal } from '../../types';
-import { CATEGORY_COLORS, CATEGORY_VALUES, type CategoryType } from '../../constants';
+import { CATEGORY_COLORS, EDITABLE_CATEGORY_VALUES, normalizeCategory, type CategoryType } from '../../constants';
 import { uploadPhoto, deletePhoto } from '../../api/entries';
 import PhotoThumbnail from './PhotoThumbnail';
 import TimeWheelPicker from '../common/TimeWheelPicker';
@@ -17,6 +17,7 @@ interface QuickNoteModalProps {
   onPhotoChange: () => void;
   todos?: Todo[];
   goals?: Goal[];
+  categoryOptions?: CategoryType[];
 }
 
 function calculateDuration(start: string, end: string) {
@@ -27,7 +28,7 @@ function calculateDuration(start: string, end: string) {
   return diff;
 }
 
-export default function QuickNoteModal({ isOpen, onClose, entry, onSave, onEdit, onUpdateTime, onPhotoChange, todos = [], goals = [] }: QuickNoteModalProps) {
+export default function QuickNoteModal({ isOpen, onClose, entry, onSave, onEdit, onUpdateTime, onPhotoChange, todos = [], goals = [], categoryOptions = EDITABLE_CATEGORY_VALUES }: QuickNoteModalProps) {
   const [note, setNote] = useState('');
   const [category, setCategory] = useState<CategoryType>('学习');
   const [startTime, setStartTime] = useState('');
@@ -48,7 +49,7 @@ export default function QuickNoteModal({ isOpen, onClose, entry, onSave, onEdit,
   useEffect(() => {
     if (entry) {
       setNote(entry.note || '');
-      setCategory(entry.category);
+      setCategory(normalizeCategory(entry.category));
       setStartTime(entry.startTime);
       setEndTime(entry.endTime);
       setLinkedTodoId(entry.linkedTodoId);
@@ -204,7 +205,7 @@ export default function QuickNoteModal({ isOpen, onClose, entry, onSave, onEdit,
         {showCategoryPicker && (
           <div className="flex-shrink-0 border-b border-gray-50 px-5 py-3">
             <div className="grid grid-cols-5 gap-2">
-              {CATEGORY_VALUES.filter((cat) => cat !== '未记录').map((cat) => (
+              {categoryOptions.map((cat) => (
                 <button
                   key={cat}
                   type="button"

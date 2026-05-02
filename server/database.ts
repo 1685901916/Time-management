@@ -122,12 +122,13 @@ db.prepare(`
     WHEN '鍒锋墜鏈�' THEN '刷手机'
     WHEN '鍒锋墜鏈?' THEN '刷手机'
     WHEN '娓告垙' THEN '游戏'
-    WHEN '淇℃伅宸ヤ綔' THEN '信息工作'
+    WHEN '淇℃伅宸ヤ綔' THEN '工作'
+    WHEN '信息工作' THEN '工作'
     WHEN '鎴峰' THEN '户外'
     WHEN '鍐欑瑪璁�' THEN '写笔记'
     WHEN '鍐欑瑪璁?' THEN '写笔记'
     WHEN '浼戞伅' THEN '休息'
-    WHEN '鐞愪簨' THEN '琐事'
+    WHEN '鐞愪簨' THEN '未记录'
     WHEN '杩愬姩' THEN '运动'
     WHEN '�˶�' THEN '运动'
     WHEN '鏈褰�' THEN '未记录'
@@ -135,9 +136,48 @@ db.prepare(`
     ELSE category
   END
   WHERE category IN (
-    '瀛︿範','鐫欒','鐫¤','鍒锋墜鏈�','鍒锋墜鏈?','娓告垙','淇℃伅宸ヤ綔',
+    '瀛︿範','鐫欒','鐫¤','鍒锋墜鏈�','鍒锋墜鏈?','娓告垙','淇℃伅宸ヤ綔','信息工作',
     '鎴峰','鍐欑瑪璁�','鍐欑瑪璁?','浼戞伅','鐞愪簨','杩愬姩','�˶�','鏈褰�','鏈褰?'
   )
+`).run();
+
+db.prepare(`
+  UPDATE goals
+  SET category = '工作'
+  WHERE title = '工作' AND category = '信息工作'
+`).run();
+
+db.prepare(`
+  UPDATE goals
+  SET category = '信息'
+  WHERE title = '信息' AND category = '未记录'
+`).run();
+
+db.prepare(`
+  UPDATE goals
+  SET category = '未记录'
+  WHERE title = '琐事' AND category = '琐事'
+`).run();
+
+db.prepare(`
+  UPDATE time_entries
+  SET category = CASE category
+    WHEN '淇℃伅宸ヤ綔' THEN '工作'
+    WHEN '信息工作' THEN '工作'
+    WHEN '鐞愪簨' THEN '未记录'
+    ELSE category
+  END
+  WHERE category IN ('淇℃伅宸ヤ綔', '信息工作', '鐞愪簨')
+`).run();
+
+db.prepare(`
+  UPDATE time_entries
+  SET category = (
+    SELECT category
+    FROM goals
+    WHERE goals.id = time_entries.linked_goal_id
+  )
+  WHERE linked_goal_id IS NOT NULL
 `).run();
 
 db.prepare(`
