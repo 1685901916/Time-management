@@ -61,29 +61,25 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
         </div>
       </aside>
 
-      <div className="pointer-events-none fixed bottom-6 left-0 z-50 flex w-full justify-center lg:hidden">
-        <nav className="pointer-events-auto flex w-[90%] max-w-[360px] items-center justify-around rounded-full border border-white/70 bg-white/90 px-2 py-2 shadow-float backdrop-blur-xl">
+      <div
+        className="fixed bottom-0 left-0 right-0 z-50 lg:hidden"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        <nav className="flex w-full items-stretch border-t border-slate-100 bg-white px-1 pt-1.5 pb-1.5">
           {tabs.map((tab) => {
             const isActive = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
                 onClick={() => onTabChange(tab.id)}
-                className={`relative flex h-12 w-14 cursor-pointer flex-col items-center justify-center rounded-2xl transition-colors duration-300 ${
+                className={`relative flex flex-1 cursor-pointer flex-col items-center justify-center gap-0.5 py-1 transition-colors duration-200 ${
                   isActive ? 'text-slate-950' : 'text-slate-400 hover:text-slate-600'
                 }`}
                 aria-current={isActive ? 'page' : undefined}
               >
-                {isActive && (
-                  <motion.div
-                    layoutId="mobile-nav-indicator"
-                    className="absolute inset-0 -z-10 rounded-2xl bg-slate-100"
-                    transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                  />
-                )}
-                <motion.div whileTap={{ scale: 0.9 }} className="flex flex-col items-center gap-1">
+                <motion.div whileTap={{ scale: 0.9 }} className="flex flex-col items-center gap-0.5">
                   <tab.icon size={22} strokeWidth={isActive ? 2.5 : 2} />
-                  <span className="text-[10px] font-medium tracking-wide">{tab.label}</span>
+                  <span className="text-[10px] font-semibold tracking-wide">{tab.label}</span>
                 </motion.div>
               </button>
             );

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   ArrowDownUp,
+  BookOpen,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -12,6 +13,7 @@ import {
   Save,
   Sparkles,
   Target,
+  TrendingUp,
 } from 'lucide-react';
 import MarkdownText from '../common/MarkdownText';
 import PageHeader from '../common/PageHeader';
@@ -137,6 +139,22 @@ ${categoryStats.length > 0 ? categoryStats.map((stat) => `- ${stat.category}：$
 `,
   },
 ] as const;
+
+type ReviewTemplateKey = (typeof REVIEW_TEMPLATES)[number]['key'];
+
+const REVIEW_TEMPLATE_CARDS: Array<{
+  key: ReviewTemplateKey;
+  label: string;
+  icon: typeof FileText;
+  accent: string;
+  bg: string;
+}> = [
+  { key: 'timeline', label: '开销日记', icon: FileText, accent: '#475569', bg: '#F1F5F9' },
+  { key: 'review', label: '日终复盘', icon: ClipboardList, accent: '#64748B', bg: '#F8FAFC' },
+  { key: 'questions', label: '四个问题', icon: Sparkles, accent: '#7C3AED', bg: '#F5F3FF' },
+  { key: 'axis', label: '时间轴', icon: ArrowDownUp, accent: '#2563EB', bg: '#EFF6FF' },
+  { key: 'overview', label: '概览', icon: Target, accent: '#334155', bg: '#F1F5F9' },
+];
 
 function formatMinutes(minutes: number) {
   const hours = Math.floor(minutes / 60);
@@ -329,115 +347,59 @@ function TrendBars({
   const niceMax = Math.ceil(max / 60 / 2) * 2 * 60;
   const total = data.reduce((sum, d) => sum + d.minutes, 0);
   const avg = data.length > 0 ? total / data.length : 0;
-  const yTicks = [0, niceMax / 4, niceMax / 2, (3 * niceMax) / 4, niceMax];
-
-  const width = 520;
-  const height = 200;
-  const padLeft = 36;
-  const padRight = 12;
-  const padTop = 14;
-  const padBottom = 28;
-  const innerW = width - padLeft - padRight;
-  const innerH = height - padTop - padBottom;
-  const slot = innerW / data.length;
-  const barW = Math.min(28, slot * 0.55);
-
-  const yFor = (mins: number) => padTop + innerH - (mins / niceMax) * innerH;
-  const avgY = yFor(avg);
-
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
-  const inactiveBar = '#E2E8F0';
+  const avgRatio = Math.min(100, (avg / niceMax) * 100);
 
   return (
-    <div className="relative w-full">
-      <svg viewBox={`0 0 ${width} ${height}`} className="block w-full overflow-visible" preserveAspectRatio="xMidYMid meet">
-        {yTicks.map((tick) => (
-          <g key={tick}>
-            <line x1={padLeft} x2={width - padRight} y1={yFor(tick)} y2={yFor(tick)} stroke="#F1F5F9" strokeWidth={1} />
-            <text x={padLeft - 8} y={yFor(tick) + 4} textAnchor="end" fontSize={10} fill="#94A3B8">
-              {Math.round(tick / 60)}h
-            </text>
-          </g>
-        ))}
-
+    <div className="relative space-y-2.5">
+      <div className="relative mb-3 h-7">
+        <div className="absolute left-[58px] right-[78px] top-3 h-px bg-slate-100" />
         {avg > 0 && (
-          <g>
-            <line
-              x1={padLeft}
-              x2={width - padRight}
-              y1={avgY}
-              y2={avgY}
-              stroke={color}
-              strokeWidth={1.2}
-              strokeDasharray="4 4"
-            />
-            <text x={width - padRight} y={avgY - 6} textAnchor="end" fontSize={10} fill={color} fontWeight={700}>
-              平均 {formatMinutes(Math.round(avg))}
-            </text>
-          </g>
+          <div
+            className="absolute top-0 flex -translate-x-1/2 flex-col items-center"
+            style={{ left: `calc(58px + (100% - 136px) * ${avgRatio / 100})` }}
+          >
+            <span className="rounded-full bg-white px-2 py-1 text-[10px] font-extrabold text-slate-400 shadow-[0_8px_24px_-18px_rgba(15,23,42,0.6)]">
+              均值 {formatMinutes(Math.round(avg))}
+            </span>
+            <span className="mt-1 h-2 w-px" style={{ backgroundColor: color }} />
+          </div>
         )}
-
+      </div>
+      <div className="space-y-2.5">
         {data.map((bucket, idx) => {
           const isActive = bucket.date === highlightDate;
-          const x = padLeft + slot * idx + (slot - barW) / 2;
-          const barHeight = (bucket.minutes / niceMax) * innerH;
-          const y = padTop + innerH - barHeight;
+          const ratio = Math.min(100, (bucket.minutes / niceMax) * 100);
+          const isHovered = hoverIdx === idx;
           return (
-            <g
+            <div
               key={bucket.date}
               onMouseEnter={() => setHoverIdx(idx)}
               onMouseLeave={() => setHoverIdx(null)}
-              style={{ cursor: 'pointer' }}
+              className={`grid grid-cols-[48px_minmax(0,1fr)_68px] items-center gap-2 rounded-2xl px-2 py-1.5 transition-all ${
+                isActive ? 'bg-white shadow-[0_12px_34px_-28px_rgba(15,23,42,0.7)]' : 'hover:bg-white/70'
+              }`}
             >
-              <rect
-                x={padLeft + slot * idx}
-                y={padTop}
-                width={slot}
-                height={innerH}
-                fill="transparent"
-              />
-              {barHeight > 0 ? (
-                <rect
-                  x={x}
-                  y={y}
-                  width={barW}
-                  height={barHeight}
-                  rx={6}
-                  fill={isActive ? color : inactiveBar}
-                  opacity={isActive ? 1 : 0.85}
-                />
-              ) : (
-                <rect x={x} y={padTop + innerH - 2} width={barW} height={2} rx={1} fill="#EEF2F7" />
-              )}
-              <text
-                x={padLeft + slot * idx + slot / 2}
-                y={height - 8}
-                textAnchor="middle"
-                fontSize={11}
-                fill={isActive ? '#0F172A' : '#94A3B8'}
-                fontWeight={isActive ? 700 : 600}
-              >
+              <span className={`text-xs font-extrabold number-font ${isActive ? 'text-slate-950' : 'text-slate-400'}`}>
                 {shortDateLabel(bucket.date)}
-              </text>
-            </g>
+              </span>
+              <div className="relative h-3 overflow-hidden rounded-full bg-slate-100">
+                <div
+                  className="h-full rounded-full transition-all duration-300"
+                  style={{
+                    width: `${Math.max(bucket.minutes > 0 ? 5 : 0, ratio)}%`,
+                    backgroundColor: color,
+                    opacity: bucket.minutes > 0 ? (isActive || isHovered ? 0.95 : 0.42) : 0,
+                  }}
+                />
+              </div>
+              <span className={`text-right text-[11px] font-extrabold number-font ${isActive ? 'text-slate-950' : 'text-slate-400'}`}>
+                {bucket.minutes > 0 ? formatMinutes(bucket.minutes) : '0 分钟'}
+              </span>
+            </div>
           );
         })}
-      </svg>
-
-      {hoverIdx !== null && data[hoverIdx] && (
-        <div
-          className="pointer-events-none absolute z-30 rounded-xl bg-slate-950 px-3 py-2 text-xs font-bold text-white shadow-lg"
-          style={{
-            left: `${((padLeft + slot * hoverIdx + slot / 2) / width) * 100}%`,
-            top: `${(yFor(data[hoverIdx].minutes) / height) * 100}%`,
-            transform: 'translate(-50%, calc(-100% - 10px))',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          <div className="text-[10px] font-bold text-slate-400">{shortDateLabel(data[hoverIdx].date)}</div>
-          <div>{data[hoverIdx].minutes > 0 ? formatMinutes(data[hoverIdx].minutes) : '无记录'}</div>
-        </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -456,6 +418,7 @@ export default function DailyAnalysisView({
   const [reviewSaving, setReviewSaving] = useState(false);
   const [reviewMessage, setReviewMessage] = useState('');
   const [reviewEditing, setReviewEditing] = useState(false);
+  const [reviewRollbackContent, setReviewRollbackContent] = useState<string | null>(null);
   const [selectedTemplate, setSelectedTemplate] =
     useState<(typeof REVIEW_TEMPLATES)[number]['key']>('timeline');
   const [rangeEntries, setRangeEntries] = useState<TimeEntry[]>([]);
@@ -479,9 +442,11 @@ export default function DailyAnalysisView({
       const review = await getDailyReview(selectedDate);
       const content = normalizeGeneratedReview(review?.content || '');
       setReviewContent(content);
+      setReviewRollbackContent(null);
       setReviewEditing(!content.trim());
     } catch {
       setReviewContent('');
+      setReviewRollbackContent(null);
       setReviewEditing(true);
     } finally {
       setReviewLoading(false);
@@ -513,21 +478,47 @@ export default function DailyAnalysisView({
     return trendDays.map((date) => ({ date, minutes: map[date] || 0 }));
   }, [rangeEntries, trendDays, trendCategory]);
 
+  const trendSummary = useMemo(() => {
+    const todayMinutes = trend.find((bucket) => bucket.date === selectedDate)?.minutes || 0;
+    const activeDays = trend.filter((bucket) => bucket.minutes > 0).length;
+    const total = trend.reduce((sum, bucket) => sum + bucket.minutes, 0);
+    const average = trend.length > 0 ? Math.round(total / trend.length) : 0;
+    const peak = trend.reduce<TrendBucket | null>(
+      (current, bucket) => (!current || bucket.minutes > current.minutes ? bucket : current),
+      null
+    );
+
+    return {
+      todayMinutes,
+      activeDays,
+      average,
+      peak,
+    };
+  }, [selectedDate, trend]);
+
   const trendColor = trendCategory === 'all' ? ACCENT_RING_HEX : CATEGORY_COLORS[trendCategory];
 
-  const trendCategoryOptions: (CategoryType | 'all')[] = [
-    'all',
-    '睡觉',
-    '学习',
-    '运动',
-    '刷手机',
-    '休息',
-    '信息工作',
-    '户外',
-    '写笔记',
-    '游戏',
-    '琐事',
-  ];
+  const trendCategoryOptions = useMemo<(CategoryType | 'all')[]>(() => {
+    const totals = new Map<CategoryType, number>();
+    for (const entry of rangeEntries) {
+      if (entry.isArchived) continue;
+      const category = normalizeCategory(entry.category);
+      totals.set(category, (totals.get(category) || 0) + entry.durationMinutes);
+    }
+
+    const options: (CategoryType | 'all')[] = [
+      'all',
+      ...Array.from(totals.entries())
+        .sort((a, b) => b[1] - a[1])
+        .map(([category]) => category),
+    ];
+
+    if (trendCategory !== 'all' && !options.includes(trendCategory)) {
+      options.push(trendCategory);
+    }
+
+    return options;
+  }, [rangeEntries, trendCategory]);
 
   useEffect(() => {
     setAnalysis(null);
@@ -536,24 +527,42 @@ export default function DailyAnalysisView({
     loadTrend();
   }, [selectedDate, loadReview, loadTrend]);
 
-  const handleInsertTemplate = useCallback(
-    (templateKey: (typeof REVIEW_TEMPLATES)[number]['key']) => {
-      const template = REVIEW_TEMPLATES.find((item) => item.key === templateKey);
-      if (!template) return;
-      const block = normalizeGeneratedReview(template.content(selectedDate, sortedEntries, categoryStats));
-      setSelectedTemplate(templateKey);
-      setReviewMessage('');
-      setReviewContent((previous) => (previous.trim() ? `${previous.trim()}\n\n${block}` : block));
-      setReviewEditing(true);
-    },
-    [categoryStats, selectedDate, sortedEntries]
-  );
+  const selectedTemplateContent = useMemo(() => {
+    const template = REVIEW_TEMPLATES.find((item) => item.key === selectedTemplate);
+    if (!template) return '';
+    return normalizeGeneratedReview(template.content(selectedDate, sortedEntries, categoryStats));
+  }, [selectedTemplate, selectedDate, sortedEntries, categoryStats]);
+
+  const selectedTemplateCard =
+    REVIEW_TEMPLATE_CARDS.find((card) => card.key === selectedTemplate) || REVIEW_TEMPLATE_CARDS[0];
+
+  const handleApplyTemplate = useCallback(() => {
+    if (reviewContent.trim() && !window.confirm('当前已有内容，使用模板将替换现有内容，是否继续？')) {
+      return;
+    }
+    setReviewRollbackContent(reviewContent);
+    setReviewContent(selectedTemplateContent);
+    setReviewEditing(true);
+    setReviewMessage('');
+  }, [reviewContent, selectedTemplateContent]);
+
+  const handleRollbackTemplate = useCallback(() => {
+    if (reviewRollbackContent === null) {
+      setReviewEditing(false);
+      return;
+    }
+    setReviewContent(reviewRollbackContent);
+    setReviewRollbackContent(null);
+    setReviewEditing(true);
+    setReviewMessage('');
+  }, [reviewRollbackContent]);
 
   const handleSaveReview = useCallback(async () => {
     setReviewSaving(true);
     setReviewMessage('');
     try {
       await saveDailyReview(selectedDate, reviewContent);
+      setReviewRollbackContent(null);
       setReviewMessage('已保存');
     } catch (saveError: any) {
       setReviewMessage(saveError?.response?.data?.error || saveError?.message || '保存失败');
@@ -724,11 +733,11 @@ ${entrySummary}
       />
 
       <main className="mx-auto w-full max-w-[1280px] space-y-5 px-5 py-6 lg:px-8">
-        <section className="grid gap-4 md:grid-cols-3">
+        <section className="grid grid-cols-3 gap-2 sm:gap-4">
           <KpiCard
             label="总记录"
             value={formatMinutes(totalMinutes)}
-            hint={`${entries.length} 条记录 · ${noteCount} 条备注`}
+            hint={`${entries.length} 条 · ${noteCount} 备注`}
             icon={<FileText size={18} />}
           />
           <KpiCard
@@ -740,14 +749,14 @@ ${entrySummary}
           <KpiCard
             label="复盘状态"
             value={reviewFilled ? '已记录' : '未填写'}
-            hint={reviewFilled ? '可继续修订' : '用模板生成后再手动修正'}
+            hint={reviewFilled ? '可继续修订' : '用模板生成'}
             icon={<ClipboardList size={18} />}
           />
         </section>
 
-        <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
-          <article className="minimal-card p-6">
-            <div className="mb-5 flex items-center justify-between">
+        <section className="grid gap-3 sm:gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+          <article className="minimal-card p-4 sm:p-6">
+            <div className="mb-4 flex items-center justify-between sm:mb-5">
               <span className="suite-title text-[15px]">时间分布</span>
               {topCategory && (
                 <span
@@ -762,8 +771,8 @@ ${entrySummary}
             {totalMinutes === 0 ? (
               <DistributionEmpty />
             ) : (
-              <div className="grid items-center gap-6 sm:grid-cols-[180px_minmax(0,1fr)]">
-                <div className="relative mx-auto h-[180px] w-[180px]">
+              <div className="grid items-center gap-4 sm:gap-6 sm:grid-cols-[180px_minmax(0,1fr)]">
+                <div className="relative mx-auto h-[160px] w-[160px] sm:h-[180px] sm:w-[180px]">
                   <DonutChart stats={categoryStats} total={totalMinutes} />
                   <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
                     <span className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">总计</span>
@@ -797,22 +806,51 @@ ${entrySummary}
             )}
           </article>
 
-          <article className="minimal-card p-6">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <span className="suite-title text-[15px]">趋势分布</span>
-                <span className="ml-2 text-xs font-bold text-slate-400">近 7 天</span>
+          <article
+            className="overflow-hidden rounded-[24px] border shadow-[0_22px_60px_-52px_rgba(15,23,42,0.5)]"
+            style={{
+              background: `linear-gradient(135deg, ${trendColor}24 0%, ${trendColor}10 42%, #FFFFFF 100%)`,
+              borderColor: `${trendColor}2E`,
+            }}
+          >
+            <div className="flex items-start justify-between gap-4 px-4 pb-3 pt-4 sm:px-6 sm:pt-5">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className="flex h-9 w-9 items-center justify-center rounded-xl shadow-[inset_0_0_0_1px_rgba(255,255,255,0.7)]"
+                  style={{ backgroundColor: `${trendColor}20` }}
+                >
+                  <TrendingUp size={17} style={{ color: trendColor }} />
+                </div>
+                <div>
+                  <h3 className="text-[14px] font-extrabold text-slate-950 sm:text-[15px]">趋势分布</h3>
+                  <p className="text-[11px] font-bold text-slate-400">
+                    {trendCategory === 'all' ? '全部分类' : trendCategory} · 近 7 天
+                  </p>
+                </div>
               </div>
-              <button
-                type="button"
-                className="flex h-8 cursor-default items-center gap-1.5 rounded-xl bg-slate-50 px-3 text-xs font-extrabold text-slate-500"
-                aria-disabled
-              >
-                按天 <ChevronDown size={14} />
-              </button>
+              <div className="hidden grid-cols-3 gap-1.5 sm:grid">
+                <div className="rounded-2xl bg-white/75 px-3 py-2 text-right shadow-[inset_0_0_0_1px_rgba(255,255,255,0.7)]">
+                  <p className="text-[10px] font-extrabold uppercase tracking-[0.14em]" style={{ color: trendColor }}>今日</p>
+                  <p className="mt-0.5 text-sm font-extrabold text-slate-950 number-font">{formatMinutes(trendSummary.todayMinutes)}</p>
+                </div>
+                <div className="rounded-2xl bg-white/75 px-3 py-2 text-right shadow-[inset_0_0_0_1px_rgba(255,255,255,0.7)]">
+                  <p className="text-[10px] font-extrabold uppercase tracking-[0.14em]" style={{ color: trendColor }}>活跃</p>
+                  <p className="mt-0.5 text-sm font-extrabold text-slate-950 number-font">{trendSummary.activeDays} 天</p>
+                </div>
+                <div className="rounded-2xl bg-white/75 px-3 py-2 text-right shadow-[inset_0_0_0_1px_rgba(255,255,255,0.7)]">
+                  <p className="text-[10px] font-extrabold uppercase tracking-[0.14em]" style={{ color: trendColor }}>峰值</p>
+                  <p className="mt-0.5 text-sm font-extrabold text-slate-950 number-font">
+                    {trendSummary.peak ? formatMinutes(trendSummary.peak.minutes) : '0 分钟'}
+                  </p>
+                </div>
+              </div>
             </div>
 
-            <div className="mb-4 -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 scrollbar-hide">
+            <div
+              className="mx-4 mb-4 overflow-hidden rounded-2xl p-1 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.7)] sm:mx-6"
+              style={{ backgroundColor: `${trendColor}1F` }}
+            >
+              <div className="hide-scrollbar flex gap-1 overflow-x-auto">
               {trendCategoryOptions.map((option) => {
                 const isActive = trendCategory === option;
                 const label = option === 'all' ? '全部' : option;
@@ -822,32 +860,33 @@ ${entrySummary}
                     key={option}
                     type="button"
                     onClick={() => setTrendCategory(option)}
-                    className="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-extrabold transition-colors"
+                    className="flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-[11px] font-extrabold transition-all sm:text-xs"
                     style={
                       isActive
-                        ? { backgroundColor: optionColor, color: '#FFFFFF' }
-                        : { backgroundColor: `${optionColor}1A`, color: optionColor }
+                        ? { backgroundColor: optionColor, color: '#FFFFFF', boxShadow: `0 10px 24px -18px ${optionColor}` }
+                        : { color: '#64748B' }
                     }
                   >
-                    {option !== 'all' && (
-                      <span
-                        className="h-2 w-2 rounded-full"
-                        style={{ backgroundColor: isActive ? '#FFFFFF' : optionColor }}
-                      />
-                    )}
+                    <span
+                      className="h-1.5 w-1.5 rounded-full"
+                      style={{ backgroundColor: isActive ? '#FFFFFF' : optionColor }}
+                    />
                     {label}
                   </button>
                 );
               })}
+              </div>
             </div>
 
-            <TrendBars data={trend} highlightDate={selectedDate} color={trendColor} />
+            <div className="border-t border-white/60 bg-white/50 px-3 pb-4 pt-2 sm:px-5 sm:pb-5">
+              <TrendBars data={trend} highlightDate={selectedDate} color={trendColor} />
+            </div>
           </article>
         </section>
 
-        <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-          <div className="space-y-4">
-            <article className="minimal-card p-6">
+        <section className="grid gap-3 sm:gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          <div className="space-y-3 sm:space-y-4">
+            <article className="minimal-card p-4 sm:p-6">
               <div className="mb-4 flex items-center justify-between">
                 <span className="suite-title text-[15px]">时间线</span>
                 <span className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
@@ -901,10 +940,10 @@ ${entrySummary}
               )}
             </article>
 
-            <article className="minimal-card p-5">
+            <article className="minimal-card p-4 sm:p-5">
               <div className="flex items-center gap-3">
                 <div
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl sm:h-11 sm:w-11"
                   style={{ background: ACCENT.fill, color: ACCENT.ink }}
                 >
                   <Sparkles size={20} />
@@ -1014,100 +1053,144 @@ ${entrySummary}
             </article>
           </div>
 
-          <article className="minimal-card flex flex-col p-6">
-            <div className="mb-4 flex items-center justify-between">
-              <span className="suite-title text-[15px]">复盘模板</span>
-              <div className="flex items-center gap-2">
+          <article
+            className="overflow-hidden rounded-[24px] border shadow-[0_22px_60px_-52px_rgba(15,23,42,0.5)]"
+            style={{
+              background: `linear-gradient(145deg, ${selectedTemplateCard.bg} 0%, #FFFFFF 44%, #F8FAFC 100%)`,
+              borderColor: `${selectedTemplateCard.accent}18`,
+            }}
+          >
+            <div className="flex items-start justify-between gap-4 px-4 pb-3 pt-4 sm:px-6 sm:pt-5">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className="flex h-9 w-9 items-center justify-center rounded-xl"
+                  style={{ backgroundColor: selectedTemplateCard.bg, color: selectedTemplateCard.accent }}
+                >
+                  <BookOpen size={17} />
+                </div>
+                <div>
+                  <h3 className="text-[14px] font-extrabold text-slate-950 sm:text-[15px]">复盘笔记</h3>
+                  <p className="text-[11px] font-bold text-slate-400">
+                    当前：{selectedTemplateCard.label} · {reviewEditing ? '编辑中' : '预览中'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5">
                 <button
                   type="button"
-                  onClick={() => setReviewEditing((value) => !value)}
-                  className="suite-soft-button px-3 py-1.5 text-xs"
+                  onClick={handleRollbackTemplate}
+                  className="rounded-xl bg-slate-50 px-3 py-2 text-[11px] font-extrabold text-slate-500 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-45 sm:text-xs"
+                  disabled={reviewRollbackContent === null && reviewEditing}
                 >
-                  {reviewEditing ? '预览' : '编辑'}
+                  返回
                 </button>
                 <button
-                  onClick={handleSaveReview}
-                  disabled={reviewSaving || reviewLoading}
-                  className="suite-primary-button flex items-center gap-1.5 px-3 py-1.5 text-xs"
+                  type="button"
+                  onClick={handleApplyTemplate}
+                  disabled={reviewLoading}
+                  className="flex items-center gap-1.5 rounded-xl bg-slate-700 px-3.5 py-2 text-[11px] font-extrabold text-white shadow-[0_10px_24px_-18px_rgba(15,23,42,0.9)] transition-colors hover:bg-slate-800 disabled:opacity-50 sm:text-xs"
                 >
-                  {reviewSaving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
-                  {reviewSaving ? '保存中…' : '保存'}
+                  <Save size={12} />
+                  填充模板
                 </button>
               </div>
             </div>
 
-            <div className="-mx-1 mb-4 flex flex-wrap gap-1 border-b border-slate-100">
-              {REVIEW_TEMPLATES.map((template) => {
-                const isActive = selectedTemplate === template.key;
-                return (
+            <div
+              className="mx-4 mb-4 overflow-hidden rounded-2xl p-1 sm:mx-6"
+              style={{ backgroundColor: `${selectedTemplateCard.accent}10` }}
+            >
+              <div className="hide-scrollbar flex gap-1 overflow-x-auto">
+                {REVIEW_TEMPLATE_CARDS.map((card) => {
+                  const isActive = selectedTemplate === card.key;
+                  return (
+                    <button
+                      key={card.key}
+                      type="button"
+                      onClick={() => setSelectedTemplate(card.key)}
+                      className={`flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-[11px] font-extrabold transition-all sm:text-xs ${
+                        isActive
+                          ? 'text-white shadow-[0_10px_24px_-18px_rgba(15,23,42,0.9)]'
+                          : 'text-slate-500 hover:bg-white/60'
+                      }`}
+                      style={isActive ? { backgroundColor: card.accent } : undefined}
+                    >
+                      <span
+                        className="flex h-5 w-5 items-center justify-center rounded-md"
+                        style={{
+                          backgroundColor: isActive ? card.bg : '#FFFFFF',
+                          color: isActive ? card.accent : card.accent,
+                        }}
+                      >
+                        <card.icon size={12} />
+                      </span>
+                      {card.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="px-4 pb-4 sm:px-6 sm:pb-5">
+              <div className="relative">
+                {reviewEditing ? (
+                  <textarea
+                    value={reviewContent}
+                    maxLength={REVIEW_MAX}
+                    onChange={(event) => {
+                      setReviewContent(event.target.value);
+                      setReviewMessage('');
+                    }}
+                    placeholder={
+                      reviewLoading
+                        ? '加载中…'
+                        : '写下今天的复盘。支持 Markdown：标题、列表、加粗都可以…'
+                    }
+                    className="min-h-[220px] w-full resize-none rounded-3xl border border-slate-100 bg-slate-50/60 p-4 text-sm font-semibold leading-7 text-slate-700 outline-none transition-all placeholder:font-medium placeholder:text-slate-300 focus:border-slate-200 focus:bg-white focus:ring-4 focus:ring-slate-100 lg:min-h-[300px]"
+                  />
+                ) : (
                   <button
-                    key={template.key}
-                    onClick={() => handleInsertTemplate(template.key)}
-                    className={`relative cursor-pointer px-3 pb-3 pt-1.5 text-sm font-extrabold transition-colors ${
-                      isActive ? 'text-slate-950' : 'text-slate-400 hover:text-slate-700'
-                    }`}
+                    type="button"
+                    onClick={() => setReviewEditing(true)}
+                    className="min-h-[220px] w-full cursor-text rounded-3xl border border-slate-100 bg-slate-50/60 p-4 text-left transition-colors hover:bg-slate-50 lg:min-h-[300px]"
                   >
-                    {template.label}
-                    {isActive && (
-                      <motion.span
-                        layoutId="review-tab-indicator"
-                        className="absolute -bottom-px left-2 right-2 h-0.5 rounded-full"
-                        style={{ background: ACCENT.ring }}
-                        transition={{ type: 'spring', stiffness: 380, damping: 28 }}
+                    {reviewContent.trim() ? (
+                      <MarkdownText
+                        text={reviewContent}
+                        className="text-sm font-semibold leading-7 text-slate-700"
                       />
+                    ) : (
+                      <span className="text-sm font-medium leading-7 text-slate-300">
+                        点击上方模板生成结构，或点击这里直接开始写…
+                      </span>
                     )}
                   </button>
-                );
-              })}
-            </div>
+                )}
+              </div>
 
-            <div className="relative flex-1">
-              {reviewEditing ? (
-                <textarea
-                  value={reviewContent}
-                  maxLength={REVIEW_MAX}
-                  onChange={(event) => {
-                    setReviewContent(event.target.value);
-                    setReviewMessage('');
-                  }}
-                  placeholder={
-                    reviewLoading
-                      ? '加载中…'
-                      : '支持 Markdown：加粗、列表、标题。点击上方模板插入后可继续编辑。'
-                  }
-                  className="min-h-[280px] w-full resize-none rounded-2xl border border-slate-100 bg-white p-4 text-sm font-semibold leading-7 text-slate-700 outline-none transition-colors placeholder:font-semibold placeholder:text-slate-400 focus:border-slate-300 focus:ring-4 focus:ring-slate-100 lg:min-h-[360px]"
-                />
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setReviewEditing(true)}
-                  className="min-h-[280px] w-full cursor-text rounded-2xl border border-slate-100 bg-white p-4 text-left transition-colors hover:bg-slate-50 lg:min-h-[360px]"
+              <div className="mt-2.5 flex items-center justify-between">
+                <p
+                  className={`text-[11px] font-bold ${
+                    reviewMessage === '已保存' ? 'text-emerald-500' : reviewMessage ? 'text-red-400' : 'text-transparent'
+                  }`}
                 >
-                  {reviewContent.trim() ? (
-                    <MarkdownText
-                      text={reviewContent}
-                      className="text-sm font-semibold leading-7 text-slate-700"
-                    />
-                  ) : (
-                    <span className="text-sm font-semibold leading-7 text-slate-400">
-                      支持 Markdown：加粗、列表、标题。点击上方模板插入，或点击这里开始编辑。
-                    </span>
-                  )}
-                </button>
-              )}
-            </div>
+                  {reviewMessage || '占位'}
+                </p>
+                <p className="text-[11px] font-bold text-slate-300 number-font">
+                  {reviewLength} / {REVIEW_MAX}
+                </p>
+              </div>
 
-            <div className="mt-3 flex items-center justify-between">
-              <p
-                className={`text-xs font-bold ${
-                  reviewMessage === '已保存' ? 'text-emerald-600' : reviewMessage ? 'text-red-500' : 'text-transparent'
-                }`}
-              >
-                {reviewMessage || '占位'}
-              </p>
-              <p className="text-xs font-bold text-slate-400 number-font">
-                {reviewLength} / {REVIEW_MAX}
-              </p>
+              <div className="mt-3 flex justify-end">
+                <button
+                  onClick={handleSaveReview}
+                  disabled={reviewSaving || reviewLoading}
+                  className="flex items-center gap-1.5 rounded-xl bg-slate-100 px-3.5 py-2 text-[11px] font-extrabold text-slate-600 transition-colors hover:bg-slate-200 disabled:opacity-50 sm:text-xs"
+                >
+                  {reviewSaving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+                  {reviewSaving ? '保存中…' : '保存复盘'}
+                </button>
+              </div>
             </div>
           </article>
         </section>
@@ -1128,14 +1211,22 @@ function KpiCard({
   icon: React.ReactNode;
 }) {
   return (
-    <div className="minimal-card flex items-center gap-4 p-5">
+    <div className="minimal-card flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:gap-4 sm:p-5">
       <div className="min-w-0 flex-1">
-        <p className="text-[12px] font-extrabold uppercase tracking-[0.18em] text-slate-400">{label}</p>
-        <p className="mt-2 text-[26px] font-extrabold leading-tight text-slate-950">{value}</p>
-        <p className="mt-1.5 text-xs font-bold text-slate-500">{hint}</p>
+        <div className="flex items-center justify-between sm:block">
+          <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-400 sm:text-[12px] sm:tracking-[0.18em]">{label}</p>
+          <div
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl sm:hidden"
+            style={{ background: ACCENT.fill, color: ACCENT.ink }}
+          >
+            {icon}
+          </div>
+        </div>
+        <p className="mt-1 text-[18px] font-extrabold leading-tight text-slate-950 sm:mt-2 sm:text-[26px]">{value}</p>
+        <p className="mt-1 text-[10px] font-bold text-slate-500 sm:mt-1.5 sm:text-xs">{hint}</p>
       </div>
       <div
-        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl"
+        className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-2xl sm:flex"
         style={{ background: ACCENT.fill, color: ACCENT.ink }}
       >
         {icon}

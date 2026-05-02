@@ -275,7 +275,7 @@ export default function QuickNoteModal({ isOpen, onClose, entry, onSave, onEdit,
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="记录这一刻的想法... 支持 Markdown 格式"
-              className={`w-full text-[15px] text-gray-700 outline-none resize-none placeholder-gray-300 leading-relaxed ${expanded ? 'h-full min-h-[300px]' : 'h-32'}`}
+              className={`w-full rounded-2xl border border-slate-100 bg-slate-50/80 p-4 text-[15px] leading-relaxed text-gray-700 outline-none resize-none placeholder-gray-400 transition-colors focus:border-slate-300 focus:bg-white focus:ring-4 focus:ring-slate-100 ${expanded ? 'h-full min-h-[300px]' : 'min-h-[140px]'}`}
               autoFocus
             />
           )}

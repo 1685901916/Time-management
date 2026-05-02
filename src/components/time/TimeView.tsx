@@ -405,9 +405,11 @@ export default function TimeView({
                             )}
                           </div>
 
-                          {item.itemType === 'entry' && item.note && (
-                            <MarkdownText text={item.note} className="line-clamp-2 text-sm font-bold leading-relaxed text-slate-500" />
-                          )}
+                          {item.itemType === 'entry' && item.note ? (
+                            <MarkdownText text={item.note} className="line-clamp-2 text-[13px] font-bold leading-relaxed text-slate-600" />
+                          ) : item.itemType === 'entry' ? (
+                            <p className="mt-0.5 text-[12px] font-medium text-slate-300">点击添加备注...</p>
+                          ) : null}
 
                           {item.itemType === 'entry' && (item.linkedTodoId || item.linkedGoalId) && (
                             <div className="mt-2 flex flex-wrap items-center gap-1.5">

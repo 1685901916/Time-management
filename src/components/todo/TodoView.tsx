@@ -50,7 +50,7 @@ const QuadrantCard = memo(function QuadrantCard({
 
   return (
     <div
-      className="flex h-full min-h-[260px] flex-col overflow-hidden rounded-[20px] border bg-white shadow-[0_12px_34px_rgba(15,23,42,0.045)]"
+      className="flex h-full min-h-0 flex-col overflow-hidden rounded-[20px] border bg-white shadow-[0_12px_34px_rgba(15,23,42,0.045)]"
       style={{ borderColor: `${config.color}18` }}
     >
       <button

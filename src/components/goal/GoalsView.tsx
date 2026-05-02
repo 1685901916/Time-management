@@ -96,9 +96,6 @@ function SortableGoalCard({
           className="min-w-0 flex-1 cursor-pointer text-left"
           aria-label={`编辑目标 ${goal.title}`}
         >
-          <div className="mb-1 inline-flex max-w-full items-center rounded-full bg-white/15 px-2.5 py-1 text-xs font-medium text-white/90">
-            <span className="truncate">{category}</span>
-          </div>
           <h3 className="truncate text-lg font-bold leading-tight lg:text-xl">{goal.title}</h3>
         </button>
       </div>
@@ -132,7 +129,6 @@ function DesktopGoalCard({
   onDragOver: (event: DragEvent<HTMLElement>) => void;
   onDrop: (targetId: string) => void;
 }) {
-  const category = normalizeCategory(goal.category);
   const color = goalDisplayColor(goal);
 
   return (

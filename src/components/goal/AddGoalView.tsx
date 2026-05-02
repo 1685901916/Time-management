@@ -47,7 +47,10 @@ export default function AddGoalView({ onSave, onCancel }: AddGoalViewProps) {
             placeholder="目标名称，例如：每天学习 2 小时"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+            onKeyDown={(e) => {
+              if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+              if (e.key === 'Enter') handleSave();
+            }}
             className="w-full text-lg font-medium outline-none border-b-2 border-gray-100 focus:border-[#6DADD1] pb-2 transition-colors"
             autoFocus
           />
