@@ -31,6 +31,7 @@ const LEGACY_CATEGORY_ALIASES: Record<string, CategoryType> = {
   '娓告垙': '游戏',
   '淇℃伅宸ヤ綔': '信息',
   '信息工作': '信息',
+  '琐事': '信息',
   '鎴峰': '户外',
   '鍐欑瑪璁�': '写笔记',
   '鍐欑瑪璁?': '写笔记',
