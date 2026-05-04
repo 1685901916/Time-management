@@ -21,11 +21,10 @@ const formatElapsed = (startTime: number) => {
 export function useTimer() {
   const [activeTimer, setActiveTimer] = useState<ActiveTimer | null>(null);
   const [elapsed, setElapsed] = useState('00:00:00');
+  const [noteDraft, setNoteDraft] = useState('');
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
   const noteDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const note = activeTimer?.note ?? '';
 
   // tick: 每秒计算 elapsed
   useEffect(() => {
@@ -48,6 +47,14 @@ export function useTimer() {
       }
     };
   }, [activeTimer]);
+
+  useEffect(() => {
+    if (!activeTimer) {
+      setNoteDraft('');
+      return;
+    }
+    setNoteDraft(activeTimer.note ?? '');
+  }, [activeTimer?.goal?.id, activeTimer?.startTime]);
 
   // 拉取初始状态 + 订阅 SSE
   useEffect(() => {
@@ -132,6 +139,7 @@ export function useTimer() {
   }, []);
 
   const setNote = useCallback((value: string) => {
+    setNoteDraft(value);
     setActiveTimer((current) => (current ? { ...current, note: value } : current));
     if (noteDebounceRef.current) clearTimeout(noteDebounceRef.current);
     noteDebounceRef.current = setTimeout(() => {
@@ -148,7 +156,7 @@ export function useTimer() {
   return {
     activeTimer,
     elapsed,
-    note,
+    note: noteDraft,
     isActive: !!activeTimer,
     startTimer,
     clearTimer,

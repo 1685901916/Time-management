@@ -22,13 +22,15 @@ const NoteEditor = memo(function NoteEditor({
   onNoteChange: (note: string) => void;
 }) {
   return (
-    <textarea
-      value={note}
-      onChange={(e) => onNoteChange(e.target.value)}
-      placeholder={'在这里随手记录你的想法、笔记和过程，支持 Markdown 格式。\n\n计时结束后，这些内容会自动保存到对应的时间记录里。'}
-      className="min-h-0 flex-1 resize-none px-5 py-4 text-[16px] leading-relaxed text-slate-700 outline-none placeholder:text-slate-300 sm:px-6 sm:py-5"
-      autoFocus
-    />
+    <div className="flex h-full min-h-0 flex-col bg-slate-50/60 p-4 sm:p-6">
+      <textarea
+        value={note}
+        onChange={(e) => onNoteChange(e.target.value)}
+        placeholder={'在这里随手记录你的想法、笔记和过程，支持 Markdown 格式。\n\n计时结束后，这些内容会自动保存到对应的时间记录里。'}
+        className="min-h-[280px] flex-1 w-full resize-none rounded-2xl border border-slate-100 bg-white/85 p-4 text-[15px] leading-7 text-slate-700 shadow-[0_1px_0_rgba(15,23,42,0.02)] outline-none placeholder:text-slate-300 focus:border-slate-300 focus:bg-white focus:ring-4 focus:ring-slate-100 sm:p-5"
+        autoFocus
+      />
+    </div>
   );
 });
 
