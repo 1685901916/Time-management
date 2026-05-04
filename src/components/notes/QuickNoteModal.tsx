@@ -4,7 +4,7 @@ import type { TimeEntry, Todo, Goal } from '../../types';
 import { CATEGORY_COLORS, EDITABLE_CATEGORY_VALUES, normalizeCategory, type CategoryType } from '../../constants';
 import { uploadPhoto, deletePhoto } from '../../api/entries';
 import PhotoThumbnail from './PhotoThumbnail';
-import TimeWheelPicker from '../common/TimeWheelPicker';
+import TimeRangeWheelPicker from '../common/TimeRangeWheelPicker';
 import MarkdownText from '../common/MarkdownText';
 
 interface QuickNoteModalProps {
@@ -36,8 +36,7 @@ export default function QuickNoteModal({ isOpen, onClose, entry, onSave, onEdit,
   const [saving, setSaving] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
-  const [activeTimeField, setActiveTimeField] = useState<'start' | 'end' | null>(null);
-  const [timeDraft, setTimeDraft] = useState('');
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const [linkedTodoId, setLinkedTodoId] = useState<string | undefined>();
   const [linkedGoalId, setLinkedGoalId] = useState<string | undefined>();
   const [showTodoPicker, setShowTodoPicker] = useState(false);
@@ -62,7 +61,7 @@ export default function QuickNoteModal({ isOpen, onClose, entry, onSave, onEdit,
     if (!isOpen) {
       setExpanded(false);
       setShowPreview(false);
-      setActiveTimeField(null);
+      setShowTimePicker(false);
       setShowTodoPicker(false);
       setShowGoalPicker(false);
       setShowCategoryPicker(false);
@@ -70,7 +69,7 @@ export default function QuickNoteModal({ isOpen, onClose, entry, onSave, onEdit,
   }, [isOpen]);
 
   useEffect(() => {
-    if (!activeTimeField) return;
+    if (!showTimePicker) return;
     const previousOverflow = document.body.style.overflow;
     const preventBackgroundScroll = (event: Event) => {
       const target = event.target;
@@ -87,7 +86,7 @@ export default function QuickNoteModal({ isOpen, onClose, entry, onSave, onEdit,
       window.removeEventListener('wheel', preventBackgroundScroll, { capture: true });
       window.removeEventListener('touchmove', preventBackgroundScroll, { capture: true });
     };
-  }, [activeTimeField]);
+  }, [showTimePicker]);
 
   const insertMarkdown = useCallback((prefix: string, suffix: string = '') => {
     const ta = textareaRef.current;
@@ -140,24 +139,6 @@ export default function QuickNoteModal({ isOpen, onClose, entry, onSave, onEdit,
     }
   };
 
-  const openTimeField = (field: 'start' | 'end') => {
-    setActiveTimeField(field);
-    setTimeDraft(field === 'start' ? startTime : endTime);
-  };
-
-  const commitTimeDraft = () => {
-    if (activeTimeField === 'start') setStartTime(timeDraft);
-    if (activeTimeField === 'end') setEndTime(timeDraft);
-    setActiveTimeField(null);
-  };
-
-  const switchTimeField = (field: 'start' | 'end') => {
-    if (activeTimeField === 'start') setStartTime(timeDraft);
-    if (activeTimeField === 'end') setEndTime(timeDraft);
-    setActiveTimeField(field);
-    setTimeDraft(field === 'start' ? (activeTimeField === 'start' ? timeDraft : startTime) : (activeTimeField === 'end' ? timeDraft : endTime));
-  };
-
   const linkedTodo = todos.find(t => t.id === linkedTodoId);
   const linkedGoal = goals.find(g => g.id === linkedGoalId);
   const uncompletedTodos = todos.filter(t => !t.completed && !t.isArchived);
@@ -185,7 +166,7 @@ export default function QuickNoteModal({ isOpen, onClose, entry, onSave, onEdit,
                 {category}
               </button>
               <button
-                onClick={() => openTimeField('start')}
+                onClick={() => setShowTimePicker(true)}
                 className="ml-2 rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-200"
                 title="编辑时间"
               >
@@ -369,37 +350,22 @@ export default function QuickNoteModal({ isOpen, onClose, entry, onSave, onEdit,
           </button>
         </div>
 
-        {activeTimeField && (
+        {showTimePicker && (
           <div
-            className="fixed inset-0 z-[120] flex items-end bg-slate-950/20 lg:items-start lg:justify-center lg:pt-16"
+            className="fixed inset-0 z-[120] flex items-end bg-slate-950/35 lg:items-center lg:justify-center lg:p-6"
             onWheel={(event) => event.preventDefault()}
             onTouchMove={(event) => event.preventDefault()}
           >
-            <button className="absolute inset-0 cursor-default" onClick={() => setActiveTimeField(null)} aria-label="关闭时间选择" />
-            <TimeWheelPicker
-              title={activeTimeField === 'start' ? '选择开始时间' : '选择结束时间'}
-              value={timeDraft}
-              onChange={setTimeDraft}
-              onClose={commitTimeDraft}
-              className="w-full rounded-b-none lg:max-w-sm lg:rounded-b-[28px]"
-              headerExtra={
-                <div className="grid grid-cols-2 rounded-2xl bg-slate-100 p-1">
-                  <button
-                    type="button"
-                    onClick={() => switchTimeField('start')}
-                    className={`rounded-xl py-2 text-sm font-bold ${activeTimeField === 'start' ? 'bg-white text-teal-700 shadow-sm' : 'text-slate-500'}`}
-                  >
-                    开始 {activeTimeField === 'start' ? timeDraft : startTime}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => switchTimeField('end')}
-                    className={`rounded-xl py-2 text-sm font-bold ${activeTimeField === 'end' ? 'bg-white text-teal-700 shadow-sm' : 'text-slate-500'}`}
-                  >
-                    结束 {activeTimeField === 'end' ? timeDraft : endTime}
-                  </button>
-                </div>
-              }
+            <button className="absolute inset-0 cursor-default" onClick={() => setShowTimePicker(false)} aria-label="关闭时间选择" />
+            <TimeRangeWheelPicker
+              startTime={startTime}
+              endTime={endTime}
+              onChange={({ startTime: nextStart, endTime: nextEnd }) => {
+                setStartTime(nextStart);
+                setEndTime(nextEnd);
+              }}
+              onClose={() => setShowTimePicker(false)}
+              className="max-h-[86vh] w-full overflow-y-auto rounded-b-none lg:max-w-3xl lg:rounded-[28px]"
             />
           </div>
         )}
