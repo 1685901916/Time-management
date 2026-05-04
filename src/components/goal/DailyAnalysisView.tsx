@@ -501,24 +501,19 @@ export default function DailyAnalysisView({
   const trendColor = trendCategory === 'all' ? ACCENT_RING_HEX : CATEGORY_COLORS[trendCategory];
 
   const trendCategoryOptions = useMemo<(CategoryType | 'all')[]>(() => {
-    const totals = new Map<CategoryType, number>();
-    for (const entry of rangeEntries) {
-      if (entry.isArchived) continue;
-      const category = normalizeCategory(entry.category);
-      totals.set(category, (totals.get(category) || 0) + entry.durationMinutes);
-    }
-
     const options: (CategoryType | 'all')[] = [
       'all',
-      ...categoryOptions.filter((category) => totals.has(category)).sort((a, b) => (totals.get(b) || 0) - (totals.get(a) || 0)),
+      ...categoryOptions.filter((category) => category !== '未记录'),
     ];
 
-    if (trendCategory !== 'all' && !options.includes(trendCategory)) {
-      options.push(trendCategory);
-    }
-
     return options;
-  }, [rangeEntries, trendCategory]);
+  }, [categoryOptions]);
+
+  useEffect(() => {
+    if (trendCategory !== 'all' && !trendCategoryOptions.includes(trendCategory)) {
+      setTrendCategory('all');
+    }
+  }, [trendCategory, trendCategoryOptions]);
 
   useEffect(() => {
     setAnalysis(null);

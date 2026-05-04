@@ -76,15 +76,16 @@ export default function AppLayout({ user, onLogout }: AppLayoutProps) {
   const todayStr = getLocalDateString();
   const isToday = selectedDate === todayStr;
   const categoryOptions = useMemo(() => {
-    const options = new Set<CategoryType>();
-    EDITABLE_CATEGORY_VALUES.forEach((category) => {
-      if (category !== '未记录') options.add(category);
-    });
+    const goalCategories: CategoryType[] = [];
+    const seen = new Set<CategoryType>();
     goals.forEach((goal) => {
       const category = normalizeCategory(goal.category);
-      if (category !== '未记录') options.add(category);
+      if (category === '未记录' || seen.has(category)) return;
+      seen.add(category);
+      goalCategories.push(category);
     });
-    return Array.from(options);
+
+    return goalCategories.length > 0 ? goalCategories : EDITABLE_CATEGORY_VALUES;
   }, [goals]);
   const filteredEntries = useMemo(
     () => entries.filter((entry) => entry.date === selectedDate && !entry.isArchived),
