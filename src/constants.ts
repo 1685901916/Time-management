@@ -26,6 +26,7 @@ export type QuadrantType = (typeof QUADRANT_VALUES)[number];
 const LEGACY_CATEGORY_ALIASES: Record<string, CategoryType> = {
   '瀛︿範': '学习',
   '鐫¤': '睡觉',
+  '睡眠': '睡觉',
   '鍒锋墜鏈�': '刷手机',
   '鍒锋墜鏈?': '刷手机',
   '娓告垙': '游戏',
@@ -60,6 +61,26 @@ export function normalizeCategory(value?: string | null): CategoryType {
   return LEGACY_CATEGORY_ALIASES[value] || '未记录';
 }
 
+export function sortCategoriesForDisplay(categories: CategoryType[]): CategoryType[] {
+  const ordered: CategoryType[] = [];
+  const seen = new Set<CategoryType>();
+
+  categories.forEach((category) => {
+    const normalized = normalizeCategory(category);
+    if (normalized === '未记录' || seen.has(normalized)) return;
+    seen.add(normalized);
+    ordered.push(normalized);
+  });
+
+  const sleepIndex = ordered.indexOf('睡觉');
+  if (sleepIndex > -1 && ordered.length > 1) {
+    ordered.splice(sleepIndex, 1);
+    ordered.splice(1, 0, '睡觉');
+  }
+
+  return ordered;
+}
+
 export function normalizeQuadrant(value?: string | null): QuadrantType {
   if (!value) return '重要且紧急';
   if ((QUADRANT_VALUES as readonly string[]).includes(value)) return value as QuadrantType;
@@ -80,7 +101,9 @@ export const CATEGORY_COLORS: Record<CategoryType, string> = {
   未记录: '#E5E7EB',
 };
 
-export const EDITABLE_CATEGORY_VALUES = CATEGORY_VALUES.filter((category) => category !== '未记录') as CategoryType[];
+export const EDITABLE_CATEGORY_VALUES = sortCategoriesForDisplay(
+  CATEGORY_VALUES.filter((category) => category !== '未记录') as CategoryType[]
+);
 
 export const QUADRANT_CONFIG: Record<QuadrantType, { color: string; icon: string; label: string; bg: string }> = {
   重要且紧急: { color: '#EF4444', icon: 'I', label: '重要且紧急', bg: '#FEF2F2' },

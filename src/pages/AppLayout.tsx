@@ -13,7 +13,7 @@ import TimerOverlay from '../components/timer/TimerOverlay';
 import TodoEditView from '../components/todo/TodoEditView';
 import TodoView from '../components/todo/TodoView';
 import { getStats } from '../api/entries';
-import { EDITABLE_CATEGORY_VALUES, getLocalDateString, normalizeCategory } from '../constants';
+import { EDITABLE_CATEGORY_VALUES, getLocalDateString, normalizeCategory, sortCategoriesForDisplay } from '../constants';
 import { useEntries } from '../hooks/useEntries';
 import { useGoals } from '../hooks/useGoals';
 import { useTimer } from '../hooks/useTimer';
@@ -85,7 +85,7 @@ export default function AppLayout({ user, onLogout }: AppLayoutProps) {
       goalCategories.push(category);
     });
 
-    return goalCategories.length > 0 ? goalCategories : EDITABLE_CATEGORY_VALUES;
+    return goalCategories.length > 0 ? sortCategoriesForDisplay(goalCategories) : EDITABLE_CATEGORY_VALUES;
   }, [goals]);
   const filteredEntries = useMemo(
     () => entries.filter((entry) => entry.date === selectedDate && !entry.isArchived),

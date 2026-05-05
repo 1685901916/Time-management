@@ -802,7 +802,7 @@ ${entrySummary}
           </article>
 
           <article
-            className="overflow-hidden rounded-[24px] border shadow-[0_22px_60px_-52px_rgba(15,23,42,0.5)]"
+            className="min-w-0 overflow-hidden rounded-[24px] border shadow-[0_22px_60px_-52px_rgba(15,23,42,0.5)]"
             style={{
               background: `linear-gradient(135deg, ${trendColor}24 0%, ${trendColor}10 42%, #FFFFFF 100%)`,
               borderColor: `${trendColor}2E`,
@@ -842,10 +842,10 @@ ${entrySummary}
             </div>
 
             <div
-              className="mx-4 mb-4 overflow-hidden rounded-2xl p-1 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.7)] sm:mx-6"
+              className="mx-4 mb-4 min-w-0 rounded-2xl p-1 pb-2 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.7)] sm:mx-6"
               style={{ backgroundColor: `${trendColor}1F` }}
             >
-              <div className="hide-scrollbar flex gap-1 overflow-x-auto">
+              <div className="flex min-w-0 gap-1 overflow-x-auto overscroll-x-contain pb-1 pr-4">
               {trendCategoryOptions.map((option) => {
                 const isActive = trendCategory === option;
                 const label = option === 'all' ? '全部' : option;
