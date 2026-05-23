@@ -10,6 +10,7 @@
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
     "test": "tsx --test server/**/*.test.ts",
+    "start": "tsx server/index.ts",
     "server": "tsx watch server/index.ts",
     "dev:all": "concurrently \"npm run dev\" \"npm run server\""
   },

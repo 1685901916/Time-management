@@ -63,6 +63,18 @@ app.get('/api/stats', authMiddleware, (req, res) => {
   });
 });
 
+const distDir = path.join(__dirname, '..', 'dist');
+app.use(express.static(distDir));
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api/')) {
+    next();
+    return;
+  }
+  res.sendFile(path.join(distDir, 'index.html'), (error) => {
+    if (error) next();
+  });
+});
+
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err.stack);
   if (err.code === 'LIMIT_FILE_SIZE') {

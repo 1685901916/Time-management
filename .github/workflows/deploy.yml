@@ -1,0 +1,61 @@
+name: Deploy to Server
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SERVER_HOST: ${{ secrets.SERVER_HOST }}
+      SERVER_USER: ${{ secrets.SERVER_USER }}
+      SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+      SERVER_PATH: ${{ secrets.SERVER_PATH }}
+
+    steps:
+      - name: Check deployment secrets
+        run: |
+          if [ -z "$SERVER_HOST" ] || [ -z "$SERVER_USER" ] || [ -z "$SERVER_SSH_KEY" ] || [ -z "$SERVER_PATH" ]; then
+            echo "Deployment secrets are not configured. Skipping server deploy."
+            exit 0
+          fi
+
+      - name: Deploy over SSH
+        if: env.SERVER_HOST != '' && env.SERVER_USER != '' && env.SERVER_SSH_KEY != '' && env.SERVER_PATH != ''
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            set -e
+
+            APP_DIR="${{ secrets.SERVER_PATH }}"
+            REPO_URL="https://github.com/1685901916/Time-management.git"
+
+            if ! command -v node >/dev/null 2>&1; then
+              echo "Node.js is not installed on the server."
+              exit 1
+            fi
+
+            if ! command -v pm2 >/dev/null 2>&1; then
+              npm install -g pm2
+            fi
+
+            if [ ! -d "$APP_DIR/.git" ]; then
+              mkdir -p "$(dirname "$APP_DIR")"
+              git clone "$REPO_URL" "$APP_DIR"
+            fi
+
+            cd "$APP_DIR"
+            git fetch origin main
+            git reset --hard origin/main
+            mkdir -p data uploads
+            npm ci
+            npm run lint
+            npm test
+            npm run build
+            pm2 startOrRestart ecosystem.config.cjs --env production
+            pm2 save
