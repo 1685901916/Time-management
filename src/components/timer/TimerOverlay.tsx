@@ -2,7 +2,7 @@ import { motion } from 'motion/react';
 import { Trash2, X, Square, Timer, NotebookPen } from 'lucide-react';
 import { memo } from 'react';
 import type { Goal } from '../../types';
-import { CATEGORY_COLORS, normalizeCategory } from '../../constants';
+import { getCategoryColor } from '../../constants';
 
 interface TimerOverlayProps {
   timer: { startTime: number; goal: Goal };
@@ -12,6 +12,8 @@ interface TimerOverlayProps {
   onFinish: () => void;
   onCancel: () => void;
   onDiscard: () => void;
+  finishing?: boolean;
+  categoryColorMap?: Record<string, string>;
 }
 
 const NoteEditor = memo(function NoteEditor({
@@ -42,9 +44,11 @@ export default function TimerOverlay({
   onFinish,
   onCancel,
   onDiscard,
+  finishing = false,
+  categoryColorMap = {},
 }: TimerOverlayProps) {
-  const category = normalizeCategory(timer.goal.category);
-  const color = CATEGORY_COLORS[category];
+  const category = timer.goal.category;
+  const color = getCategoryColor(category, categoryColorMap);
 
   return (
     <motion.div
@@ -130,11 +134,12 @@ export default function TimerOverlay({
           </button>
           <button
             onClick={onFinish}
+            disabled={finishing}
             className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl py-3 font-bold text-white shadow-md transition-opacity hover:opacity-90"
             style={{ backgroundColor: color }}
           >
             <Square size={14} className="fill-current" />
-            完成记录
+            {finishing ? '保存中' : '完成记录'}
           </button>
         </div>
       </motion.div>

@@ -14,7 +14,7 @@ import PageHeader from '../common/PageHeader';
 import MarkdownText from '../common/MarkdownText';
 import TimeCircle from './TimeCircle';
 import type { Goal, TimeEntry, Todo } from '../../types';
-import { CATEGORY_COLORS, getLocalDateString, normalizeCategory } from '../../constants';
+import { CATEGORY_COLORS, getCategoryColor, getLocalDateString } from '../../constants';
 
 interface TimeViewProps {
   entries: TimeEntry[];
@@ -33,6 +33,7 @@ interface TimeViewProps {
   onQuickNote: (entry: TimeEntry) => void;
   onTabChange: (tab: string) => void;
   elapsed: string;
+  categoryColorMap?: Record<string, string>;
 }
 
 type TimelineGapItem = {
@@ -111,6 +112,7 @@ export default function TimeView({
   onEditTime,
   onTabChange,
   elapsed,
+  categoryColorMap = {},
 }: TimeViewProps) {
   const [selectedEntry, setSelectedEntry] = useState<TimeEntry | null>(null);
   const timelineRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
@@ -256,6 +258,7 @@ export default function TimeView({
               onSelectEntry={handleCircleSelect}
               selectedEntryId={selectedEntry?.id}
               isToday={isToday}
+              categoryColorMap={categoryColorMap}
             />
             {activeTimer && isToday && (
               <button
@@ -309,7 +312,7 @@ export default function TimeView({
                         </span>
                         <div
                           className="h-2 w-2 rounded-full"
-                          style={{ backgroundColor: CATEGORY_COLORS[normalizeCategory(activeTimer.goal.category)] }}
+                          style={{ backgroundColor: getCategoryColor(activeTimer.goal.category, categoryColorMap) }}
                         />
                       </div>
                       <p className="mt-0.5 line-clamp-1 text-xs font-bold text-slate-500">
@@ -334,7 +337,7 @@ export default function TimeView({
                 </div>
               ) : (
                 timelineItems.map((item) => {
-                  const color = item.itemType === 'entry' ? CATEGORY_COLORS[normalizeCategory(item.category)] : CATEGORY_COLORS.未记录;
+                  const color = item.itemType === 'entry' ? getCategoryColor(item.category, categoryColorMap) : CATEGORY_COLORS.未记录;
                   const durationLabel = formatDuration(item.durationMinutes);
                   const isEntry = item.itemType === 'entry';
 

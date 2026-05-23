@@ -24,11 +24,18 @@ export interface TimeEntry {
   linkedGoalId?: string;
 }
 
+export interface Category {
+  id: string;
+  name: string;
+  color: string;
+  sortOrder?: number;
+}
+
 export interface Goal {
   id: string;
   title: string;
   subtitle: string;
-  category: CategoryType;
+  category: string;
   color?: string;
   sortOrder?: number;
 }

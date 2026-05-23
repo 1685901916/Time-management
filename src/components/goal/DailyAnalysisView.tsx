@@ -20,6 +20,7 @@ import PageHeader from '../common/PageHeader';
 import {
   CATEGORY_COLORS,
   type CategoryType,
+  getCategoryColor,
   getLocalDateString,
   normalizeCategory,
 } from '../../constants';
@@ -37,6 +38,7 @@ interface DailyAnalysisViewProps {
   onDateClick: () => void;
   onMoreClick: () => void;
   categoryOptions: CategoryType[];
+  categoryColorMap?: Record<string, string>;
 }
 
 interface AnalysisResult {
@@ -47,7 +49,7 @@ interface AnalysisResult {
 }
 
 type CategoryStat = {
-  category: CategoryType;
+  category: string;
   minutes: number;
 };
 
@@ -171,7 +173,7 @@ function getCategoryStats(entries: TimeEntry[]): CategoryStat[] {
     map[entry.category] = (map[entry.category] || 0) + entry.durationMinutes;
   }
   return Object.entries(map)
-    .map(([category, minutes]) => ({ category: normalizeCategory(category), minutes }))
+    .map(([category, minutes]) => ({ category, minutes }))
     .sort((a, b) => b.minutes - a.minutes);
 }
 
@@ -208,7 +210,7 @@ function buildTimeDiary(date: string, entries: TimeEntry[], categoryStats: Categ
   }
 
   const lines = categoryStats.flatMap((stat) => {
-    const items = sorted.filter((entry) => normalizeCategory(entry.category) === stat.category);
+    const items = sorted.filter((entry) => entry.category === stat.category || normalizeCategory(entry.category) === stat.category);
     return [
       `【${stat.category}】${formatMinutes(stat.minutes)}`,
       ...items.map((entry, index) => {
@@ -313,7 +315,7 @@ function DonutChart({
               cy={cy}
               r={r}
               fill="none"
-              stroke={CATEGORY_COLORS[stat.category]}
+              stroke={getCategoryColor(stat.category)}
               strokeWidth={thickness}
             />
           );
@@ -323,7 +325,7 @@ function DonutChart({
             key={stat.category}
             d={describePolarPath(cx, cy, r, startAngle, endAngle)}
             fill="none"
-            stroke={CATEGORY_COLORS[stat.category]}
+            stroke={getCategoryColor(stat.category)}
             strokeWidth={thickness}
             strokeLinecap="butt"
           />
@@ -411,6 +413,7 @@ export default function DailyAnalysisView({
   onDateChange,
   onDateClick,
   categoryOptions,
+  categoryColorMap = {},
 }: DailyAnalysisViewProps) {
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
@@ -472,7 +475,7 @@ export default function DailyAnalysisView({
     for (const day of trendDays) map[day] = 0;
     for (const entry of rangeEntries) {
       if (entry.isArchived) continue;
-      if (trendCategory !== 'all' && normalizeCategory(entry.category) !== trendCategory) continue;
+      if (trendCategory !== 'all' && entry.category !== trendCategory && normalizeCategory(entry.category) !== trendCategory) continue;
       if (map[entry.date] !== undefined) {
         map[entry.date] += entry.durationMinutes;
       }
@@ -498,7 +501,7 @@ export default function DailyAnalysisView({
     };
   }, [selectedDate, trend]);
 
-  const trendColor = trendCategory === 'all' ? ACCENT_RING_HEX : CATEGORY_COLORS[trendCategory];
+  const trendColor = trendCategory === 'all' ? ACCENT_RING_HEX : getCategoryColor(trendCategory, categoryColorMap);
 
   const trendCategoryOptions = useMemo<(CategoryType | 'all')[]>(() => {
     const options: (CategoryType | 'all')[] = [
@@ -782,7 +785,7 @@ ${entrySummary}
                       <li key={stat.category} className="flex items-center gap-3">
                         <span
                           className="h-2.5 w-2.5 shrink-0 rounded-full"
-                          style={{ background: CATEGORY_COLORS[stat.category] }}
+                          style={{ background: getCategoryColor(stat.category, categoryColorMap) }}
                         />
                         <span className="w-16 shrink-0 truncate text-sm font-extrabold text-slate-950">
                           {stat.category}
@@ -849,7 +852,7 @@ ${entrySummary}
               {trendCategoryOptions.map((option) => {
                 const isActive = trendCategory === option;
                 const label = option === 'all' ? '全部' : option;
-                const optionColor = option === 'all' ? ACCENT_RING_HEX : CATEGORY_COLORS[option];
+                const optionColor = option === 'all' ? ACCENT_RING_HEX : getCategoryColor(option, categoryColorMap);
                 return (
                   <button
                     key={option}
@@ -897,7 +900,7 @@ ${entrySummary}
               ) : (
                 <ul className="space-y-4">
                   {sortedEntries.map((entry, idx) => {
-                    const color = CATEGORY_COLORS[normalizeCategory(entry.category)] || '#CBD5E1';
+                    const color = getCategoryColor(entry.category, categoryColorMap) || '#CBD5E1';
                     return (
                       <li key={entry.id} className="relative flex gap-3.5">
                         <div className="flex flex-col items-center pt-1.5">

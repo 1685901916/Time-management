@@ -13,6 +13,7 @@ import uploadRoutes from './routes/upload.js';
 import aiProxyRoutes from './routes/aiProxy.js';
 import timerRoutes from './routes/timers.js';
 import dailyReviewRoutes from './routes/dailyReviews.js';
+import categoryRoutes from './routes/categories.js';
 
 dotenv.config();
 
@@ -32,6 +33,7 @@ app.use('/api/todos', authMiddleware, todoRoutes);
 app.use('/api/entries', authMiddleware, uploadRoutes);
 app.use('/api/ai', authMiddleware, aiProxyRoutes);
 app.use('/api/daily-reviews', authMiddleware, dailyReviewRoutes);
+app.use('/api/categories', authMiddleware, categoryRoutes);
 app.use('/api/timers', timerRoutes);
 
 app.get('/api/stats', authMiddleware, (req, res) => {

@@ -13,7 +13,8 @@ import TimerOverlay from '../components/timer/TimerOverlay';
 import TodoEditView from '../components/todo/TodoEditView';
 import TodoView from '../components/todo/TodoView';
 import { getStats } from '../api/entries';
-import { EDITABLE_CATEGORY_VALUES, getLocalDateString, normalizeCategory, sortCategoriesForDisplay } from '../constants';
+import { EDITABLE_CATEGORY_VALUES, getLocalDateString } from '../constants';
+import { useCategories } from '../hooks/useCategories';
 import { useEntries } from '../hooks/useEntries';
 import { useGoals } from '../hooks/useGoals';
 import { useTimer } from '../hooks/useTimer';
@@ -67,26 +68,28 @@ export default function AppLayout({ user, onLogout }: AppLayoutProps) {
   const [isTimerOverlayVisible, setIsTimerOverlayVisible] = useState(false);
   const [quickNoteEntry, setQuickNoteEntry] = useState<TimeEntry | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
+  const [isFinishingTimer, setIsFinishingTimer] = useState(false);
 
   const { entries, fetchEntries, createEntry, updateEntry, deleteEntry } = useEntries();
+  const { categories, fetchCategories, createCategory } = useCategories();
   const { goals, fetchGoals, createGoal, updateGoal, reorderGoals, deleteGoal } = useGoals();
   const { todos, fetchTodos, createTodo, updateTodo, deleteTodo, toggleTodo } = useTodos();
-  const { activeTimer, elapsed, note: timerNote, startTimer, clearTimer, setNote: setTimerNote, getElapsedMinutes } = useTimer();
+  const { activeTimer, elapsed, note: timerNote, startTimer, clearTimer, finishTimer, setNote: setTimerNote } = useTimer();
 
   const todayStr = getLocalDateString();
   const isToday = selectedDate === todayStr;
-  const categoryOptions = useMemo(() => {
-    const goalCategories: CategoryType[] = [];
-    const seen = new Set<CategoryType>();
-    goals.forEach((goal) => {
-      const category = normalizeCategory(goal.category);
-      if (category === '未记录' || seen.has(category)) return;
-      seen.add(category);
-      goalCategories.push(category);
-    });
-
-    return goalCategories.length > 0 ? sortCategoriesForDisplay(goalCategories) : EDITABLE_CATEGORY_VALUES;
-  }, [goals]);
+  const categoryOptions = useMemo(
+    () => (categories.length > 0 ? categories.map((category) => category.name) : EDITABLE_CATEGORY_VALUES) as CategoryType[],
+    [categories]
+  );
+  const categoryColorMap = useMemo(
+    () =>
+      categories.reduce<Record<string, string>>((map, category) => {
+        map[category.name] = category.color;
+        return map;
+      }, {}),
+    [categories]
+  );
   const filteredEntries = useMemo(
     () => entries.filter((entry) => entry.date === selectedDate && !entry.isArchived),
     [entries, selectedDate]
@@ -95,6 +98,10 @@ export default function AppLayout({ user, onLogout }: AppLayoutProps) {
   useEffect(() => {
     fetchEntries(selectedDate);
   }, [selectedDate, fetchEntries]);
+
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
 
   useEffect(() => {
     fetchGoals();
@@ -209,31 +216,18 @@ export default function AppLayout({ user, onLogout }: AppLayoutProps) {
   );
 
   const handleFinishTimer = useCallback(async () => {
-    if (!activeTimer) return;
-
-    const endTime = new Date();
-    const startTime = new Date(activeTimer.startTime);
-    const durationMinutes = Math.max(1, getElapsedMinutes());
-    const formatTime = (date: Date) =>
-      `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
-    const startStr = formatTime(startTime);
-    const endStr = formatTime(endTime);
-    const endDateStr = getLocalDateString(endTime);
-
-    await createEntry({
-      date: endDateStr,
-      startTime: startStr,
-      endTime: endStr,
-      category: activeTimer.goal.category,
-      note: timerNote.trim(),
-      durationMinutes,
-      linkedGoalId: activeTimer.goal.id,
-    });
-
-    await clearTimer();
-    setIsTimerOverlayVisible(false);
-    setSelectedDate(getLocalDateString());
-  }, [activeTimer, getElapsedMinutes, createEntry, timerNote, clearTimer]);
+    if (!activeTimer || isFinishingTimer) return;
+    setIsFinishingTimer(true);
+    try {
+      const result = await finishTimer(Date.now());
+      const nextDate = result?.entry?.date || getLocalDateString();
+      setIsTimerOverlayVisible(false);
+      setSelectedDate(nextDate);
+      await fetchEntries(nextDate);
+    } finally {
+      setIsFinishingTimer(false);
+    }
+  }, [activeTimer, isFinishingTimer, finishTimer, fetchEntries]);
 
   const handleDiscardTimer = useCallback(async () => {
     if (!window.confirm('确定取消这次计时吗？当前进度会被清除。')) return;
@@ -243,6 +237,11 @@ export default function AppLayout({ user, onLogout }: AppLayoutProps) {
 
   const handleAddGoal = useCallback(
     async (goal: Goal) => {
+      const existingCategory = categories.find((category) => category.name === goal.category);
+      if (!existingCategory && goal.category) {
+        await createCategory({ name: goal.category, color: goal.color || '#64748B' });
+        await fetchCategories();
+      }
       const created = await createGoal({
         title: goal.title,
         subtitle: goal.subtitle,
@@ -256,7 +255,7 @@ export default function AppLayout({ user, onLogout }: AppLayoutProps) {
         setSelectedDate(getLocalDateString());
       }
     },
-    [createGoal, activeTimer, startTimer]
+    [categories, createCategory, fetchCategories, createGoal, activeTimer, startTimer]
   );
 
   const handleUpdateGoal = useCallback(
@@ -342,6 +341,7 @@ export default function AppLayout({ user, onLogout }: AppLayoutProps) {
             onQuickNote={handleQuickNote}
             onTabChange={setActiveTab}
             elapsed={elapsed}
+            categoryColorMap={categoryColorMap}
           />
         );
       case 'todo':
@@ -369,6 +369,7 @@ export default function AppLayout({ user, onLogout }: AppLayoutProps) {
             onReorder={handleReorderGoals}
             onMoreClick={() => setIsMenuOpen(true)}
             categoryOptions={categoryOptions}
+            categoryColorMap={categoryColorMap}
           />
         );
       case 'analysis':
@@ -380,6 +381,7 @@ export default function AppLayout({ user, onLogout }: AppLayoutProps) {
             onDateClick={() => setIsDatePickerOpen(true)}
             onMoreClick={() => setIsMenuOpen(true)}
             categoryOptions={categoryOptions}
+            categoryColorMap={categoryColorMap}
           />
         );
       case 'me':
@@ -397,7 +399,14 @@ export default function AppLayout({ user, onLogout }: AppLayoutProps) {
         {renderView()}
       </div>
 
-      {isAddingGoal && <AddGoalView onSave={handleAddGoal} onCancel={() => setIsAddingGoal(false)} />}
+      {isAddingGoal && (
+        <AddGoalView
+          onSave={handleAddGoal}
+          onCancel={() => setIsAddingGoal(false)}
+          categories={categories}
+          onCreateCategory={createCategory}
+        />
+      )}
 
       {activeTimer && isTimerOverlayVisible && (
         <TimerOverlay
@@ -408,6 +417,8 @@ export default function AppLayout({ user, onLogout }: AppLayoutProps) {
           onFinish={handleFinishTimer}
           onCancel={() => setIsTimerOverlayVisible(false)}
           onDiscard={handleDiscardTimer}
+          finishing={isFinishingTimer}
+          categoryColorMap={categoryColorMap}
         />
       )}
 
@@ -426,6 +437,7 @@ export default function AppLayout({ user, onLogout }: AppLayoutProps) {
           onDelete={handleDeleteEntry}
           onMergePrevious={handleMergeEntry}
           categoryOptions={categoryOptions}
+          categoryColorMap={categoryColorMap}
         />
       )}
       {editingTodo && (
@@ -478,6 +490,7 @@ export default function AppLayout({ user, onLogout }: AppLayoutProps) {
         todos={todos}
         goals={goals}
         categoryOptions={categoryOptions}
+        categoryColorMap={categoryColorMap}
       />
     </div>
   );

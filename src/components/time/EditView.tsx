@@ -11,6 +11,7 @@ interface EditViewProps {
   onDelete?: (id: string) => void;
   onMergePrevious?: (entry: TimeEntry) => void | Promise<void>;
   categoryOptions: CategoryType[];
+  categoryColorMap?: Record<string, string>;
   openPickerOnMount?: boolean;
 }
 
@@ -25,7 +26,7 @@ function nowHHmm() {
   return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 }
 
-export default function EditView({ entry, onSave, onCancel, onDelete, onMergePrevious, categoryOptions }: EditViewProps) {
+export default function EditView({ entry, onSave, onCancel, onDelete, onMergePrevious, categoryOptions, categoryColorMap = {} }: EditViewProps) {
   const initialDefaults = useMemo(() => {
     const current = nowHHmm();
     return {
@@ -123,7 +124,7 @@ export default function EditView({ entry, onSave, onCancel, onDelete, onMergePre
                     className={`rounded-full py-2 text-sm font-medium text-white/95 transition-all ${
                       category === cat ? 'ring-2 ring-slate-400 ring-offset-2' : ''
                     }`}
-                    style={{ backgroundColor: CATEGORY_COLORS[cat] }}
+                    style={{ backgroundColor: categoryColorMap[cat] || CATEGORY_COLORS[cat] }}
                   >
                     {cat}
                   </button>

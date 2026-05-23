@@ -69,6 +69,18 @@ db.exec(`
     updated_at  TEXT    DEFAULT (datetime('now'))
   );
 
+  CREATE TABLE IF NOT EXISTS categories (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id     INTEGER NOT NULL REFERENCES users(id),
+    name        TEXT    NOT NULL,
+    color       TEXT    NOT NULL,
+    sort_order  INTEGER NOT NULL DEFAULT 0,
+    is_archived INTEGER NOT NULL DEFAULT 0,
+    created_at  TEXT    DEFAULT (datetime('now')),
+    updated_at  TEXT    DEFAULT (datetime('now')),
+    UNIQUE(user_id, name)
+  );
+
   CREATE TABLE IF NOT EXISTS daily_reviews (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id    INTEGER NOT NULL REFERENCES users(id),
@@ -113,6 +125,49 @@ safeExec(`ALTER TABLE time_entries ADD COLUMN linked_todo_id INTEGER DEFAULT NUL
 safeExec(`ALTER TABLE time_entries ADD COLUMN linked_goal_id INTEGER DEFAULT NULL`);
 safeExec(`ALTER TABLE goals ADD COLUMN color TEXT DEFAULT NULL`);
 safeExec(`ALTER TABLE goals ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0`);
+
+const defaultCategories = [
+  ['学习', '#FFD966'],
+  ['睡觉', '#6DADD1'],
+  ['刷手机', '#76C893'],
+  ['游戏', '#E63946'],
+  ['工作', '#F4A261'],
+  ['信息', '#5C7CFA'],
+  ['户外', '#F77F00'],
+  ['写笔记', '#E76F51'],
+  ['休息', '#A8DADC'],
+  ['运动', '#F08080'],
+] as const;
+
+const userRows = db.prepare('SELECT id FROM users').all() as Array<{ id: number }>;
+const insertCategory = db.prepare(
+  `INSERT OR IGNORE INTO categories (user_id, name, color, sort_order)
+   VALUES (?, ?, ?, ?)`
+);
+
+for (const user of userRows) {
+  defaultCategories.forEach(([name, color], index) => {
+    insertCategory.run(user.id, name, color, index + 1);
+  });
+
+  const customRows = db
+    .prepare(
+      `SELECT category AS name, MIN(COALESCE(color, '')) AS color
+       FROM goals
+       WHERE user_id = ? AND category IS NOT NULL AND category != '' AND category != '未记录'
+       GROUP BY category`
+    )
+    .all(user.id) as Array<{ name: string; color: string }>;
+
+  customRows.forEach((row, index) => {
+    insertCategory.run(
+      user.id,
+      row.name,
+      row.color || defaultCategories[index % defaultCategories.length][1],
+      defaultCategories.length + index + 1
+    );
+  });
+}
 
 db.prepare(`
   UPDATE goals
@@ -178,6 +233,12 @@ db.prepare(`
     WHERE goals.id = time_entries.linked_goal_id
   )
   WHERE linked_goal_id IS NOT NULL
+    AND EXISTS (
+      SELECT 1
+      FROM goals
+      WHERE goals.id = time_entries.linked_goal_id
+        AND goals.category IS NOT NULL
+    )
 `).run();
 
 db.prepare(`

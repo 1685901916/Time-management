@@ -4,7 +4,7 @@ import { motion, Reorder, useDragControls } from 'motion/react';
 import { Check, GripVertical, Layers3, Play, Plus, Target, Trash2, X } from 'lucide-react';
 import PageHeader from '../common/PageHeader';
 import type { CategoryType, Goal } from '../../types';
-import { CATEGORY_COLORS, EDITABLE_CATEGORY_VALUES, GOAL_COLOR_PRESETS, normalizeCategory } from '../../constants';
+import { CATEGORY_COLORS, EDITABLE_CATEGORY_VALUES, GOAL_COLOR_PRESETS, getCategoryColor, normalizeCategory } from '../../constants';
 
 interface GoalsViewProps {
   goals: Goal[];
@@ -15,6 +15,7 @@ interface GoalsViewProps {
   onReorder: (goalIds: string[]) => void;
   onMoreClick: () => void;
   categoryOptions: CategoryType[];
+  categoryColorMap?: Record<string, string>;
 }
 
 const LONG_PRESS_MS = 260;
@@ -29,22 +30,25 @@ const APP_COLORS = {
   accentHover: '#115E59',
 };
 
-const goalDisplayColor = (goal: Goal) => goal.color || CATEGORY_COLORS[normalizeCategory(goal.category)] || APP_COLORS.accent;
+const goalDisplayColor = (goal: Goal, categoryColorMap: Record<string, string> = {}) =>
+  goal.color || getCategoryColor(goal.category, categoryColorMap) || APP_COLORS.accent;
 
 function SortableGoalCard({
   goal,
   onStart,
   onOpenEdit,
+  categoryColorMap,
 }: {
   goal: Goal;
   onStart: (goal: Goal) => void;
   onOpenEdit: (goal: Goal) => void;
+  categoryColorMap?: Record<string, string>;
 }) {
   const controls = useDragControls();
   const timerRef = useRef<number | null>(null);
   const [dragReady, setDragReady] = useState(false);
   const category = normalizeCategory(goal.category);
-  const color = goal.color || CATEGORY_COLORS[category];
+  const color = goalDisplayColor(goal, categoryColorMap);
 
   const clearPressTimer = () => {
     if (timerRef.current) {
@@ -121,6 +125,7 @@ function DesktopGoalCard({
   onDragStart,
   onDragOver,
   onDrop,
+  categoryColorMap,
 }: {
   goal: Goal;
   onStart: (goal: Goal) => void;
@@ -128,8 +133,9 @@ function DesktopGoalCard({
   onDragStart: (goalId: string) => void;
   onDragOver: (event: DragEvent<HTMLElement>) => void;
   onDrop: (targetId: string) => void;
+  categoryColorMap?: Record<string, string>;
 }) {
-  const color = goalDisplayColor(goal);
+  const color = goalDisplayColor(goal, categoryColorMap);
 
   return (
     <article
@@ -166,7 +172,7 @@ function DesktopGoalCard({
   );
 }
 
-export default function GoalsView({ goals, onStart, onAdd, onDelete, onUpdate, onReorder, onMoreClick, categoryOptions }: GoalsViewProps) {
+export default function GoalsView({ goals, onStart, onAdd, onDelete, onUpdate, onReorder, onMoreClick, categoryOptions, categoryColorMap = {} }: GoalsViewProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [editCategory, setEditCategory] = useState<CategoryType>(categoryOptions[0] || EDITABLE_CATEGORY_VALUES[0]);
@@ -185,11 +191,11 @@ export default function GoalsView({ goals, onStart, onAdd, onDelete, onUpdate, o
       categoryOptions
         .map((category) => ({
           category,
-          count: goals.filter((goal) => normalizeCategory(goal.category) === category).length,
-          color: CATEGORY_COLORS[category],
+          count: goals.filter((goal) => goal.category === category || normalizeCategory(goal.category) === category).length,
+          color: getCategoryColor(category, categoryColorMap),
         }))
         .filter((item) => item.count > 0),
-    [goals]
+    [goals, categoryColorMap, categoryOptions]
   );
 
   const handleDesktopDrop = (targetId: string) => {
@@ -210,7 +216,7 @@ export default function GoalsView({ goals, onStart, onAdd, onDelete, onUpdate, o
     setEditCategory(normalizeCategory(goal.category));
     const nextCategory = normalizeCategory(goal.category);
     setEditCategory(categoryOptions.includes(nextCategory) ? nextCategory : categoryOptions[0] || EDITABLE_CATEGORY_VALUES[0]);
-    setEditColor(goal.color || CATEGORY_COLORS[nextCategory] || CATEGORY_COLORS[categoryOptions[0] || EDITABLE_CATEGORY_VALUES[0]]);
+    setEditColor(goalDisplayColor(goal, categoryColorMap) || CATEGORY_COLORS[categoryOptions[0] || EDITABLE_CATEGORY_VALUES[0]]);
   };
 
   const handleSaveEdit = () => {
@@ -296,7 +302,7 @@ export default function GoalsView({ goals, onStart, onAdd, onDelete, onUpdate, o
               className="grid grid-cols-1 gap-3 lg:hidden"
             >
               {visibleGoals.map((goal) => (
-                <SortableGoalCard key={goal.id} goal={goal} onStart={onStart} onOpenEdit={openEdit} />
+                <SortableGoalCard key={goal.id} goal={goal} onStart={onStart} onOpenEdit={openEdit} categoryColorMap={categoryColorMap} />
               ))}
             </Reorder.Group>
 
@@ -310,6 +316,7 @@ export default function GoalsView({ goals, onStart, onAdd, onDelete, onUpdate, o
                   onDragStart={setDraggingGoalId}
                   onDragOver={(event) => event.preventDefault()}
                   onDrop={handleDesktopDrop}
+                  categoryColorMap={categoryColorMap}
                 />
               ))}
             </div>

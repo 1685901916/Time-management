@@ -1,15 +1,16 @@
 import React, { useMemo } from 'react';
 import type { TimeEntry } from '../../types';
-import { CATEGORY_COLORS } from '../../constants';
+import { CATEGORY_COLORS, getCategoryColor } from '../../constants';
 
 interface TimeCircleProps {
   entries: TimeEntry[];
   onSelectEntry: (entry: TimeEntry | null) => void;
   selectedEntryId?: string;
   isToday: boolean;
+  categoryColorMap?: Record<string, string>;
 }
 
-export default function TimeCircle({ entries, onSelectEntry, selectedEntryId, isToday }: TimeCircleProps) {
+export default function TimeCircle({ entries, onSelectEntry, selectedEntryId, isToday, categoryColorMap = {} }: TimeCircleProps) {
   const [currentTime, setCurrentTime] = React.useState(new Date());
   const [hoveredId, setHoveredId] = React.useState<string | null>(null);
 
@@ -104,7 +105,7 @@ export default function TimeCircle({ entries, onSelectEntry, selectedEntryId, is
           const isSelected = selectedEntryId === seg.id;
           const isHovered = hoveredId === seg.id;
           return (
-            <path key={seg.segmentId} d={describeArc(startAngle, endAngle, r, ir)} fill={CATEGORY_COLORS[seg.category]}
+            <path key={seg.segmentId} d={describeArc(startAngle, endAngle, r, ir)} fill={getCategoryColor(seg.category, categoryColorMap)}
               className={`cursor-pointer transition-all duration-200 ${isSelected || isHovered ? 'opacity-100' : 'opacity-90'}`}
               onClick={(e) => { e.stopPropagation(); onSelectEntry(seg); }}
               onMouseEnter={() => setHoveredId(seg.id)} onMouseLeave={() => setHoveredId(null)} />

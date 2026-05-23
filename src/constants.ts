@@ -61,6 +61,11 @@ export function normalizeCategory(value?: string | null): CategoryType {
   return LEGACY_CATEGORY_ALIASES[value] || '未记录';
 }
 
+export function getCategoryColor(value?: string | null, customColors: Record<string, string> = {}) {
+  if (value && customColors[value]) return customColors[value];
+  return CATEGORY_COLORS[normalizeCategory(value)] || CATEGORY_COLORS.未记录;
+}
+
 export function sortCategoriesForDisplay(categories: CategoryType[]): CategoryType[] {
   const ordered: CategoryType[] = [];
   const seen = new Set<CategoryType>();

@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import db from '../database.js';
 import { authMiddleware, authQueryMiddleware } from '../middleware/authMiddleware.js';
 import { emit, subscribe, unsubscribe } from '../utils/timerEvents.js';
+import { finishActiveTimerTransaction } from '../utils/timerFinish.js';
 
 const router = Router();
 
@@ -90,6 +91,17 @@ router.delete('/', authMiddleware, (req: Request, res: Response) => {
   db.prepare('DELETE FROM active_timers WHERE user_id = ?').run(userId);
   emit(userId, 'stopped', null);
   res.json({ ok: true });
+});
+
+router.post('/finish', authMiddleware, (req: Request, res: Response) => {
+  const userId = (req as any).user.userId as number;
+  const endedAt = typeof req.body?.endedAt === 'number' && Number.isFinite(req.body.endedAt)
+    ? req.body.endedAt
+    : Date.now();
+
+  const result = finishActiveTimerTransaction(db, userId, endedAt);
+  emit(userId, 'stopped', null);
+  res.json({ ...result, timer: null });
 });
 
 router.get('/stream', authQueryMiddleware, (req: Request, res: Response) => {

@@ -25,3 +25,8 @@ export async function updateActiveTimerNote(note: string): Promise<ActiveTimer |
 export async function clearActiveTimer(): Promise<void> {
   await client.delete('/timers');
 }
+
+export async function finishActiveTimer(endedAt?: number): Promise<{ created: boolean; entry: any | null }> {
+  const { data } = await client.post('/timers/finish', { endedAt });
+  return { created: !!data?.created, entry: data?.entry ?? null };
+}

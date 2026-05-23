@@ -3,6 +3,7 @@ import type { Goal } from '../types';
 import {
   type ActiveTimer,
   clearActiveTimer,
+  finishActiveTimer,
   getActiveTimer,
   startActiveTimer,
   updateActiveTimerNote,
@@ -76,6 +77,16 @@ export function useTimer() {
         if (!cancelled) setActiveTimer(null);
       });
 
+    const refreshSnapshot = () => {
+      getActiveTimer()
+        .then((timer) => {
+          if (!cancelled) setActiveTimer(timer);
+        })
+        .catch(() => {
+          if (!cancelled) setActiveTimer(null);
+        });
+    };
+
     const url = `${STREAM_ENDPOINT}?token=${encodeURIComponent(token)}`;
     const source = new EventSource(url);
     eventSourceRef.current = source;
@@ -108,6 +119,8 @@ export function useTimer() {
     source.addEventListener('started', onStarted as EventListener);
     source.addEventListener('note', onNote as EventListener);
     source.addEventListener('stopped', onStopped as EventListener);
+    source.addEventListener('open', refreshSnapshot as EventListener);
+    source.addEventListener('error', refreshSnapshot as EventListener);
 
     return () => {
       cancelled = true;
@@ -115,6 +128,8 @@ export function useTimer() {
       source.removeEventListener('started', onStarted as EventListener);
       source.removeEventListener('note', onNote as EventListener);
       source.removeEventListener('stopped', onStopped as EventListener);
+      source.removeEventListener('open', refreshSnapshot as EventListener);
+      source.removeEventListener('error', refreshSnapshot as EventListener);
       source.close();
       eventSourceRef.current = null;
     };
@@ -133,6 +148,14 @@ export function useTimer() {
   const clearTimer = useCallback(async () => {
     try {
       await clearActiveTimer();
+    } finally {
+      setActiveTimer(null);
+    }
+  }, []);
+
+  const finishTimer = useCallback(async (endedAt?: number) => {
+    try {
+      return await finishActiveTimer(endedAt);
     } finally {
       setActiveTimer(null);
     }
@@ -160,6 +183,7 @@ export function useTimer() {
     isActive: !!activeTimer,
     startTimer,
     clearTimer,
+    finishTimer,
     setNote,
     getElapsedMinutes,
   };

@@ -18,6 +18,7 @@ interface QuickNoteModalProps {
   todos?: Todo[];
   goals?: Goal[];
   categoryOptions?: CategoryType[];
+  categoryColorMap?: Record<string, string>;
 }
 
 function calculateDuration(start: string, end: string) {
@@ -28,7 +29,7 @@ function calculateDuration(start: string, end: string) {
   return diff;
 }
 
-export default function QuickNoteModal({ isOpen, onClose, entry, onSave, onEdit, onUpdateTime, onPhotoChange, todos = [], goals = [], categoryOptions = EDITABLE_CATEGORY_VALUES }: QuickNoteModalProps) {
+export default function QuickNoteModal({ isOpen, onClose, entry, onSave, onEdit, onUpdateTime, onPhotoChange, todos = [], goals = [], categoryOptions = EDITABLE_CATEGORY_VALUES, categoryColorMap = {} }: QuickNoteModalProps) {
   const [note, setNote] = useState('');
   const [category, setCategory] = useState<CategoryType>('学习');
   const [startTime, setStartTime] = useState('');
@@ -153,7 +154,7 @@ export default function QuickNoteModal({ isOpen, onClose, entry, onSave, onEdit,
         {/* Header */}
         <div className="px-5 pt-4 pb-3 flex items-center justify-between border-b border-gray-100 flex-shrink-0">
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: CATEGORY_COLORS[category] }} />
+            <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: categoryColorMap[category] || CATEGORY_COLORS[category] }} />
             <div className="min-w-0">
               <button
                 onClick={() => {
@@ -197,7 +198,7 @@ export default function QuickNoteModal({ isOpen, onClose, entry, onSave, onEdit,
                   className={`rounded-full px-3 py-2 text-xs font-bold text-white transition-transform active:scale-95 ${
                     category === cat ? 'ring-2 ring-slate-300 ring-offset-2' : ''
                   }`}
-                  style={{ backgroundColor: CATEGORY_COLORS[cat] }}
+                  style={{ backgroundColor: categoryColorMap[cat] || CATEGORY_COLORS[cat] }}
                 >
                   {cat}
                 </button>
@@ -305,7 +306,7 @@ export default function QuickNoteModal({ isOpen, onClose, entry, onSave, onEdit,
                   goals.map(goal => (
                     <button key={goal.id} onClick={() => { setLinkedGoalId(goal.id); setShowGoalPicker(false); }}
                       className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2 mb-1 transition-colors ${linkedGoalId === goal.id ? 'bg-amber-50 text-amber-600' : 'hover:bg-gray-50 text-gray-700'}`}>
-                      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: CATEGORY_COLORS[goal.category] }} />
+                      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: categoryColorMap[goal.category] || CATEGORY_COLORS[normalizeCategory(goal.category)] }} />
                       <span className="truncate">{goal.title}</span>
                     </button>
                   ))
