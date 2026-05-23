@@ -32,7 +32,8 @@ jobs:
           script: |
             set -e
 
-            APP_DIR="${{ secrets.SERVER_PATH }}"
+            SITE_DIR="${{ secrets.SERVER_PATH }}"
+            APP_DIR="$SITE_DIR/app"
             REPO_URL="https://github.com/1685901916/Time-management.git"
 
             if ! command -v node >/dev/null 2>&1; then
@@ -44,8 +45,15 @@ jobs:
               npm install -g pm2
             fi
 
+            mkdir -p "$SITE_DIR"
+
+            if [ -e "$APP_DIR" ] && [ ! -d "$APP_DIR/.git" ]; then
+              BACKUP_DIR="$SITE_DIR/app.backup.$(date +%Y%m%d%H%M%S)"
+              mv "$APP_DIR" "$BACKUP_DIR"
+              echo "Existing non-git app directory moved to $BACKUP_DIR"
+            fi
+
             if [ ! -d "$APP_DIR/.git" ]; then
-              mkdir -p "$(dirname "$APP_DIR")"
               git clone "$REPO_URL" "$APP_DIR"
             fi
 
