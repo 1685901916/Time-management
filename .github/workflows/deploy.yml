@@ -30,46 +30,44 @@ jobs:
 
       - name: Deploy over SSH
         if: env.SERVER_HOST != '' && env.SERVER_USER != '' && env.SERVER_SSH_KEY != '' && env.SERVER_PATH != ''
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          script: |
-            set -e
+        run: |
+          ssh -i /tmp/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=no "$SERVER_USER@$SERVER_HOST" \
+            "SERVER_PATH='$SERVER_PATH' bash -s" <<'REMOTE'
+          set -e
 
-            SITE_DIR="${{ secrets.SERVER_PATH }}"
-            APP_DIR="$SITE_DIR/app"
-            REPO_URL="https://github.com/1685901916/Time-management.git"
+          SITE_DIR="$SERVER_PATH"
+          APP_DIR="$SITE_DIR/app"
+          REPO_URL="https://github.com/1685901916/Time-management.git"
 
-            if ! command -v node >/dev/null 2>&1; then
-              echo "Node.js is not installed on the server."
-              exit 1
-            fi
+          if ! command -v node >/dev/null 2>&1; then
+            echo "Node.js is not installed on the server."
+            exit 1
+          fi
 
-            if ! command -v pm2 >/dev/null 2>&1; then
-              npm install -g pm2
-            fi
+          if ! command -v pm2 >/dev/null 2>&1; then
+            npm install -g pm2
+          fi
 
-            mkdir -p "$SITE_DIR"
+          mkdir -p "$SITE_DIR"
 
-            if [ -e "$APP_DIR" ] && [ ! -d "$APP_DIR/.git" ]; then
-              BACKUP_DIR="$SITE_DIR/app.backup.$(date +%Y%m%d%H%M%S)"
-              mv "$APP_DIR" "$BACKUP_DIR"
-              echo "Existing non-git app directory moved to $BACKUP_DIR"
-            fi
+          if [ -e "$APP_DIR" ] && [ ! -d "$APP_DIR/.git" ]; then
+            BACKUP_DIR="$SITE_DIR/app.backup.$(date +%Y%m%d%H%M%S)"
+            mv "$APP_DIR" "$BACKUP_DIR"
+            echo "Existing non-git app directory moved to $BACKUP_DIR"
+          fi
 
-            if [ ! -d "$APP_DIR/.git" ]; then
-              git clone "$REPO_URL" "$APP_DIR"
-            fi
+          if [ ! -d "$APP_DIR/.git" ]; then
+            git clone "$REPO_URL" "$APP_DIR"
+          fi
 
-            cd "$APP_DIR"
-            git fetch origin main
-            git reset --hard origin/main
-            mkdir -p data uploads
-            npm ci
-            npm run lint
-            npm test
-            npm run build
-            pm2 startOrRestart ecosystem.config.cjs --env production
-            pm2 save
+          cd "$APP_DIR"
+          git fetch origin main
+          git reset --hard origin/main
+          mkdir -p data uploads
+          npm ci
+          npm run lint
+          npm test
+          npm run build
+          pm2 startOrRestart ecosystem.config.cjs --env production
+          pm2 save
+          REMOTE
