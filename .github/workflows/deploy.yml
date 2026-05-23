@@ -23,9 +23,17 @@ jobs:
           fi
           printf '%s\n' "$SERVER_SSH_KEY" > /tmp/deploy_key
           chmod 600 /tmp/deploy_key
+
+      - name: Validate private key
+        if: env.SERVER_HOST != '' && env.SERVER_USER != '' && env.SERVER_SSH_KEY != '' && env.SERVER_PATH != ''
+        run: |
           echo "key_line_count=$(wc -l < /tmp/deploy_key)"
           ssh-keygen -y -f /tmp/deploy_key > /tmp/deploy_key.pub
           echo "key_fingerprint=$(ssh-keygen -lf /tmp/deploy_key.pub)"
+
+      - name: Test SSH auth
+        if: env.SERVER_HOST != '' && env.SERVER_USER != '' && env.SERVER_SSH_KEY != '' && env.SERVER_PATH != ''
+        run: |
           ssh -i /tmp/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=10 "$SERVER_USER@$SERVER_HOST" "echo ssh-auth-ok"
 
       - name: Deploy over SSH
