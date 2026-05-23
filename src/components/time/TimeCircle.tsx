@@ -8,9 +8,10 @@ interface TimeCircleProps {
   selectedEntryId?: string;
   isToday: boolean;
   categoryColorMap?: Record<string, string>;
+  goalColorMap?: Record<string, string>;
 }
 
-export default function TimeCircle({ entries, onSelectEntry, selectedEntryId, isToday, categoryColorMap = {} }: TimeCircleProps) {
+export default function TimeCircle({ entries, onSelectEntry, selectedEntryId, isToday, categoryColorMap = {}, goalColorMap = {} }: TimeCircleProps) {
   const [currentTime, setCurrentTime] = React.useState(new Date());
   const [hoveredId, setHoveredId] = React.useState<string | null>(null);
 
@@ -105,7 +106,7 @@ export default function TimeCircle({ entries, onSelectEntry, selectedEntryId, is
           const isSelected = selectedEntryId === seg.id;
           const isHovered = hoveredId === seg.id;
           return (
-            <path key={seg.segmentId} d={describeArc(startAngle, endAngle, r, ir)} fill={getCategoryColor(seg.category, categoryColorMap)}
+            <path key={seg.segmentId} d={describeArc(startAngle, endAngle, r, ir)} fill={(seg.linkedGoalId && goalColorMap[seg.linkedGoalId]) || getCategoryColor(seg.category, categoryColorMap)}
               className={`cursor-pointer transition-all duration-200 ${isSelected || isHovered ? 'opacity-100' : 'opacity-90'}`}
               onClick={(e) => { e.stopPropagation(); onSelectEntry(seg); }}
               onMouseEnter={() => setHoveredId(seg.id)} onMouseLeave={() => setHoveredId(null)} />

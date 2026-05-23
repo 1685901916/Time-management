@@ -90,6 +90,14 @@ export default function AppLayout({ user, onLogout }: AppLayoutProps) {
       }, {}),
     [categories]
   );
+  const goalColorMap = useMemo(
+    () =>
+      goals.reduce<Record<string, string>>((map, goal) => {
+        if (goal.color) map[goal.id] = goal.color;
+        return map;
+      }, {}),
+    [goals]
+  );
   const filteredEntries = useMemo(
     () => entries.filter((entry) => entry.date === selectedDate && !entry.isArchived),
     [entries, selectedDate]
@@ -342,6 +350,7 @@ export default function AppLayout({ user, onLogout }: AppLayoutProps) {
             onTabChange={setActiveTab}
             elapsed={elapsed}
             categoryColorMap={categoryColorMap}
+            goalColorMap={goalColorMap}
           />
         );
       case 'todo':
@@ -382,6 +391,7 @@ export default function AppLayout({ user, onLogout }: AppLayoutProps) {
             onMoreClick={() => setIsMenuOpen(true)}
             categoryOptions={categoryOptions}
             categoryColorMap={categoryColorMap}
+            goalColorMap={goalColorMap}
           />
         );
       case 'me':

@@ -48,7 +48,7 @@ export default function TimerOverlay({
   categoryColorMap = {},
 }: TimerOverlayProps) {
   const category = timer.goal.category;
-  const color = getCategoryColor(category, categoryColorMap);
+  const color = timer.goal.color || getCategoryColor(category, categoryColorMap);
 
   return (
     <motion.div

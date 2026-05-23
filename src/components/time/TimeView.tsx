@@ -34,6 +34,7 @@ interface TimeViewProps {
   onTabChange: (tab: string) => void;
   elapsed: string;
   categoryColorMap?: Record<string, string>;
+  goalColorMap?: Record<string, string>;
 }
 
 type TimelineGapItem = {
@@ -113,6 +114,7 @@ export default function TimeView({
   onTabChange,
   elapsed,
   categoryColorMap = {},
+  goalColorMap = {},
 }: TimeViewProps) {
   const [selectedEntry, setSelectedEntry] = useState<TimeEntry | null>(null);
   const timelineRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
@@ -197,6 +199,9 @@ export default function TimeView({
   };
 
   const getPhotoCount = (entry: TimeEntry) => entry.photos?.length || 0;
+  const getEntryColor = (entry: TimeEntry) =>
+    (entry.linkedGoalId && goalColorMap[entry.linkedGoalId]) || getCategoryColor(entry.category, categoryColorMap);
+  const activeTimerColor = activeTimer?.goal?.color || getCategoryColor(activeTimer?.goal?.category, categoryColorMap);
 
   const dateStepper = (
     <div className="flex items-center gap-1 rounded-2xl bg-white p-1 shadow-[0_12px_32px_-28px_rgba(15,23,42,0.45)]">
@@ -259,6 +264,7 @@ export default function TimeView({
               selectedEntryId={selectedEntry?.id}
               isToday={isToday}
               categoryColorMap={categoryColorMap}
+              goalColorMap={goalColorMap}
             />
             {activeTimer && isToday && (
               <button
@@ -289,19 +295,19 @@ export default function TimeView({
                   exit={{ opacity: 0, scale: 0.95 }}
                   onClick={onTimerClick}
                   className="flex w-full items-center justify-between gap-4 rounded-2xl border bg-white p-4 text-left shadow-soft transition-transform active:scale-[0.99]"
-                  style={{ borderColor: 'var(--color-accent-mint-fill)' }}
+                  style={{ borderColor: `${activeTimerColor}33` }}
                 >
                   <div className="flex items-center gap-3">
                     <div
                       className="flex h-12 w-12 flex-col items-center justify-center rounded-2xl"
                       style={{
-                        background: 'var(--color-accent-mint-fill)',
-                        color: 'var(--color-accent-mint-ink)',
+                        background: `${activeTimerColor}18`,
+                        color: activeTimerColor,
                       }}
                     >
                       <span
                         className="mb-1 h-1.5 w-1.5 animate-pulse rounded-full"
-                        style={{ background: 'var(--color-accent-mint-ring)' }}
+                        style={{ background: activeTimerColor }}
                       />
                       <span className="number-font text-[10px] font-extrabold">{elapsed}</span>
                     </div>
@@ -312,7 +318,7 @@ export default function TimeView({
                         </span>
                         <div
                           className="h-2 w-2 rounded-full"
-                          style={{ backgroundColor: getCategoryColor(activeTimer.goal.category, categoryColorMap) }}
+                          style={{ backgroundColor: activeTimerColor }}
                         />
                       </div>
                       <p className="mt-0.5 line-clamp-1 text-xs font-bold text-slate-500">
@@ -337,7 +343,7 @@ export default function TimeView({
                 </div>
               ) : (
                 timelineItems.map((item) => {
-                  const color = item.itemType === 'entry' ? getCategoryColor(item.category, categoryColorMap) : CATEGORY_COLORS.未记录;
+                  const color = item.itemType === 'entry' ? getEntryColor(item) : CATEGORY_COLORS.未记录;
                   const durationLabel = formatDuration(item.durationMinutes);
                   const isEntry = item.itemType === 'entry';
 

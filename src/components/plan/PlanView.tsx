@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight, BarChart2, Download, Trash, ArrowLeftRight }
 import Header from '../common/Header';
 import MarkdownText from '../common/MarkdownText';
 import type { TimeEntry } from '../../types';
-import { CATEGORY_COLORS, getLocalDateString } from '../../constants';
+import { getCategoryColor, getLocalDateString } from '../../constants';
 
 interface PlanViewProps {
   entries: TimeEntry[];
@@ -13,9 +13,21 @@ interface PlanViewProps {
   onDateChange: (date: string) => void;
   onDateClick: () => void;
   elapsed: string;
+  categoryColorMap?: Record<string, string>;
+  goalColorMap?: Record<string, string>;
 }
 
-export default function PlanView({ entries, activeTimer, selectedDate, isToday, onDateChange, onDateClick, elapsed }: PlanViewProps) {
+export default function PlanView({
+  entries,
+  activeTimer,
+  selectedDate,
+  isToday,
+  onDateChange,
+  onDateClick,
+  elapsed,
+  categoryColorMap = {},
+  goalColorMap = {},
+}: PlanViewProps) {
   const handlePrevDay = () => { const [y, m, d] = selectedDate.split('-').map(Number); onDateChange(getLocalDateString(new Date(y, m - 1, d - 1))); };
   const handleNextDay = () => { const [y, m, d] = selectedDate.split('-').map(Number); onDateChange(getLocalDateString(new Date(y, m - 1, d + 1))); };
 
@@ -70,7 +82,16 @@ export default function PlanView({ entries, activeTimer, selectedDate, isToday, 
               <div key={entry.id} className="bg-white rounded-xl p-3 shadow-sm border border-gray-100">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] text-gray-400 font-mono">{entry.startTime}~{entry.endTime}</span>
-                  <span className="text-[10px] font-bold" style={{ color: CATEGORY_COLORS[entry.category] }}>{entry.category}</span>
+                  <span
+                    className="text-[10px] font-bold"
+                    style={{
+                      color:
+                        (entry.linkedGoalId && goalColorMap[entry.linkedGoalId]) ||
+                        getCategoryColor(entry.category, categoryColorMap),
+                    }}
+                  >
+                    {entry.category}
+                  </span>
                 </div>
                 {entry.note ? (
                   <MarkdownText text={entry.note} className="mt-1 truncate text-xs text-gray-600" />

@@ -47,7 +47,6 @@ function SortableGoalCard({
   const controls = useDragControls();
   const timerRef = useRef<number | null>(null);
   const [dragReady, setDragReady] = useState(false);
-  const category = normalizeCategory(goal.category);
   const color = goalDisplayColor(goal, categoryColorMap);
 
   const clearPressTimer = () => {
@@ -213,8 +212,9 @@ export default function GoalsView({ goals, onStart, onAdd, onDelete, onUpdate, o
   const openEdit = (goal: Goal) => {
     setEditingId(goal.id);
     setEditTitle(goal.title);
-    setEditCategory(normalizeCategory(goal.category));
-    const nextCategory = normalizeCategory(goal.category);
+    const nextCategory = categoryOptions.includes(goal.category as CategoryType)
+      ? (goal.category as CategoryType)
+      : normalizeCategory(goal.category);
     setEditCategory(categoryOptions.includes(nextCategory) ? nextCategory : categoryOptions[0] || EDITABLE_CATEGORY_VALUES[0]);
     setEditColor(goalDisplayColor(goal, categoryColorMap) || CATEGORY_COLORS[categoryOptions[0] || EDITABLE_CATEGORY_VALUES[0]]);
   };

@@ -306,7 +306,7 @@ export default function QuickNoteModal({ isOpen, onClose, entry, onSave, onEdit,
                   goals.map(goal => (
                     <button key={goal.id} onClick={() => { setLinkedGoalId(goal.id); setShowGoalPicker(false); }}
                       className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2 mb-1 transition-colors ${linkedGoalId === goal.id ? 'bg-amber-50 text-amber-600' : 'hover:bg-gray-50 text-gray-700'}`}>
-                      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: categoryColorMap[goal.category] || CATEGORY_COLORS[normalizeCategory(goal.category)] }} />
+                      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: goal.color || categoryColorMap[goal.category] || CATEGORY_COLORS[normalizeCategory(goal.category)] }} />
                       <span className="truncate">{goal.title}</span>
                     </button>
                   ))

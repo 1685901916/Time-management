@@ -39,6 +39,7 @@ interface DailyAnalysisViewProps {
   onMoreClick: () => void;
   categoryOptions: CategoryType[];
   categoryColorMap?: Record<string, string>;
+  goalColorMap?: Record<string, string>;
 }
 
 interface AnalysisResult {
@@ -281,11 +282,13 @@ function DonutChart({
   total,
   size = 180,
   thickness = 22,
+  categoryColorMap = {},
 }: {
   stats: CategoryStat[];
   total: number;
   size?: number;
   thickness?: number;
+  categoryColorMap?: Record<string, string>;
 }) {
   const cx = size / 2;
   const cy = size / 2;
@@ -315,7 +318,7 @@ function DonutChart({
               cy={cy}
               r={r}
               fill="none"
-              stroke={getCategoryColor(stat.category)}
+              stroke={getCategoryColor(stat.category, categoryColorMap)}
               strokeWidth={thickness}
             />
           );
@@ -325,7 +328,7 @@ function DonutChart({
             key={stat.category}
             d={describePolarPath(cx, cy, r, startAngle, endAngle)}
             fill="none"
-            stroke={getCategoryColor(stat.category)}
+            stroke={getCategoryColor(stat.category, categoryColorMap)}
             strokeWidth={thickness}
             strokeLinecap="butt"
           />
@@ -414,6 +417,7 @@ export default function DailyAnalysisView({
   onDateClick,
   categoryOptions,
   categoryColorMap = {},
+  goalColorMap = {},
 }: DailyAnalysisViewProps) {
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
@@ -771,7 +775,7 @@ ${entrySummary}
             ) : (
               <div className="grid items-center gap-4 sm:gap-6 sm:grid-cols-[180px_minmax(0,1fr)]">
                 <div className="relative mx-auto h-[160px] w-[160px] sm:h-[180px] sm:w-[180px]">
-                  <DonutChart stats={categoryStats} total={totalMinutes} />
+                  <DonutChart stats={categoryStats} total={totalMinutes} categoryColorMap={categoryColorMap} />
                   <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
                     <span className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">总计</span>
                     <span className="mt-1 text-lg font-extrabold text-slate-950">{formatMinutes(totalMinutes)}</span>
@@ -900,7 +904,10 @@ ${entrySummary}
               ) : (
                 <ul className="space-y-4">
                   {sortedEntries.map((entry, idx) => {
-                    const color = getCategoryColor(entry.category, categoryColorMap) || '#CBD5E1';
+                    const color =
+                      (entry.linkedGoalId && goalColorMap[entry.linkedGoalId]) ||
+                      getCategoryColor(entry.category, categoryColorMap) ||
+                      '#CBD5E1';
                     return (
                       <li key={entry.id} className="relative flex gap-3.5">
                         <div className="flex flex-col items-center pt-1.5">
